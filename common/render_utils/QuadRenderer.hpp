@@ -18,7 +18,7 @@ public:
     vk::Rect2D rect = {};
   };
 
-  QuadRenderer(CreateInfo info);
+  explicit QuadRenderer(CreateInfo info);
   ~QuadRenderer() {}
 
   void render(
