@@ -3,7 +3,7 @@
 Репозиторий с материалами для курса компьютерной графики.
 Содержимое исторически имеет корни в репозитории [vk_graphics_basic](https://github.com/msu-graphics-group/vk_graphics_basic), однако на данный момент почти весь код был переписан практически с нуля.
 
-Для начала работы требуется установка [Vulkan SDK](https://vulkan.lunarg.com/).
+Для начала работы требуется установка [Vulkan SDK](https://vulkan.lunarg.com/), а также python3.
 Далее достаточно открыть папку репозитория в вашем любимом редакторе с поддержкой CMake-проектов (Vscode, Visual Studio, Clion, ...).
 Зависимости подкачиваются автоматически при помощи [CPM.cmake](https://github.com/cpm-cmake/CPM.cmake), семплы находящиеся в папке `samples` должны собираться и работать на Windows, Linux и возможно macOS.
 
