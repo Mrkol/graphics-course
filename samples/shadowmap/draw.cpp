@@ -22,19 +22,26 @@ void Renderer::drawFrame(bool draw_gui)
   // but only on some platforms (not windows+nvidia, sadly).
   if (nextSwapchainImage)
   {
-    auto[image, view, availableSem] = *nextSwapchainImage;
+    auto [image, view, availableSem] = *nextSwapchainImage;
 
-    ETNA_CHECK_VK_RESULT(currentCmdBuf.begin({ .flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse }));
+    ETNA_CHECK_VK_RESULT(
+      currentCmdBuf.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse}));
     renderWorld(currentCmdBuf, image, view);
 
     if (draw_gui)
     {
       ImDrawData* pDrawData = ImGui::GetDrawData();
-      guiRenderer->render(currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, image, view, pDrawData);
+      guiRenderer->render(
+        currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, image, view, pDrawData);
     }
 
-    etna::set_state(currentCmdBuf, image, vk::PipelineStageFlagBits2::eBottomOfPipe, {},
-      vk::ImageLayout::ePresentSrcKHR, vk::ImageAspectFlagBits::eColor);
+    etna::set_state(
+      currentCmdBuf,
+      image,
+      vk::PipelineStageFlagBits2::eBottomOfPipe,
+      {},
+      vk::ImageLayout::ePresentSrcKHR,
+      vk::ImageAspectFlagBits::eColor);
 
     etna::flush_barriers(currentCmdBuf);
 
@@ -63,6 +70,6 @@ void Renderer::drawFrame(bool draw_gui)
 void Renderer::drawFrame(float time)
 {
   updateUniformBuffer(time);
-  DrawGui();
+  drawGui();
   drawFrame(true);
 }

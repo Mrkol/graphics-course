@@ -18,7 +18,7 @@ void OsWindow::askToClose()
 
 bool OsWindow::isBeingClosed()
 {
-  return glfwWindowShouldClose(impl);
+  return glfwWindowShouldClose(impl) == GLFW_TRUE;
 }
 
 glm::uvec2 OsWindow::getResolution()
@@ -36,7 +36,5 @@ vk::UniqueSurfaceKHR OsWindow::createVkSurface(vk::Instance instance)
   ETNA_CHECK_VK_RESULT(static_cast<vk::Result>(cres));
 
   return vk::UniqueSurfaceKHR{
-    surface,
-    vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>{instance}
-  };
+    surface, vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>{instance}};
 }

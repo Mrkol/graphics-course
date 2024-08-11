@@ -12,39 +12,35 @@ SimpleCompute::SimpleCompute()
 
 void SimpleCompute::setup()
 {
-  etna::create_program("simple_compute", {GRAPHICS_COURSE_ROOT"/resources/shaders/simple.comp.spv"});
+  etna::create_program(
+    "simple_compute", {GRAPHICS_COURSE_ROOT "/resources/shaders/simple.comp.spv"});
 
-  //// Buffer creation
+  // Buffer creation
 
-  bufA = context->createBuffer(etna::Buffer::CreateInfo
-    {
-      .size = sizeof(float) * length,
-      .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-      .name = "A"
-    }
-  );
+  bufA = context->createBuffer(etna::Buffer::CreateInfo{
+    .size = sizeof(float) * length,
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+    .name = "A",
+  });
 
-  bufB = context->createBuffer(etna::Buffer::CreateInfo
-    {
-      .size = sizeof(float) * length,
-      .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-      .name = "B"
-    }
-  );
+  bufB = context->createBuffer(etna::Buffer::CreateInfo{
+    .size = sizeof(float) * length,
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+    .name = "B",
+  });
 
-  bufResult = context->createBuffer(etna::Buffer::CreateInfo
-    {
-      .size = sizeof(float) * length,
-      .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
-      .name = "m_sum"
-    }
-  );
+  bufResult = context->createBuffer(etna::Buffer::CreateInfo{
+    .size = sizeof(float) * length,
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
+    .name = "m_sum",
+  });
 
-  //// Filling the buffers
+  // Filling the buffers
 
   {
     std::vector<float> values(length);
-    for (uint32_t i = 0; i < values.size(); ++i) {
+    for (uint32_t i = 0; i < values.size(); ++i)
+    {
       values[i] = (float)i;
     }
     transferHelper->uploadBuffer<float>(*cmdMgr, bufA, 0, values);
@@ -52,12 +48,14 @@ void SimpleCompute::setup()
 
   {
     std::vector<float> values(length);
-    for (uint32_t i = 0; i < values.size(); ++i) {
-      values[i] = (float)i * i;
+    for (uint32_t i = 0; i < values.size(); ++i)
+    {
+      values[i] = static_cast<float>(i * i);
     }
     transferHelper->uploadBuffer<float>(*cmdMgr, bufB, 0, values);
   }
-  //// Compute pipeline creation
+
+  // Compute pipeline creation
   pipeline = context->getPipelineManager().createComputePipeline("simple_compute", {});
 }
 
@@ -67,20 +65,23 @@ void SimpleCompute::buildCommandBuffer(vk::CommandBuffer cmd_buf)
 
   auto simpleComputeInfo = etna::get_shader_program("simple_compute");
 
-  auto set = etna::create_descriptor_set(simpleComputeInfo.getDescriptorLayoutId(0), cmd_buf,
+  auto set = etna::create_descriptor_set(
+    simpleComputeInfo.getDescriptorLayoutId(0),
+    cmd_buf,
     {
-      etna::Binding {0, bufA.genBinding()},
-      etna::Binding {1, bufB.genBinding()},
-      etna::Binding {2, bufResult.genBinding()},
-    }
-  );
+      etna::Binding{0, bufA.genBinding()},
+      etna::Binding{1, bufB.genBinding()},
+      etna::Binding{2, bufResult.genBinding()},
+    });
 
   vk::DescriptorSet vkSet = set.getVkSet();
 
   cmd_buf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
-  cmd_buf.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, NULL);
+  cmd_buf.bindDescriptorSets(
+    vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
 
-  cmd_buf.pushConstants(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(length), &length);
+  cmd_buf.pushConstants(
+    pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(length), &length);
 
   etna::flush_barriers(cmd_buf);
 
