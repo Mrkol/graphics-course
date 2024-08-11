@@ -10,6 +10,7 @@
 class OsWindowingManager
 {
   friend class OsWindow;
+
 public:
   OsWindowingManager();
   ~OsWindowingManager();
@@ -32,8 +33,8 @@ public:
    * NOTE: you MUST use resizeCb to recreate your swapchain to get
    * cross-platform window resizing behavior.
    */
-  std::unique_ptr<OsWindow> createWindow(glm::uvec2 resolution,
-    OsWindowRefreshCb refreshCb, OsWindowResizeCb resizeCb);
+  std::unique_ptr<OsWindow> createWindow(
+    glm::uvec2 resolution, OsWindowRefreshCb refresh_cb, OsWindowResizeCb resize_cb);
 
   std::span<const char*> getRequiredVulkanInstanceExtensions();
 

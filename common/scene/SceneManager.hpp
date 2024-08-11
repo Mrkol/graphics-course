@@ -13,9 +13,9 @@
 // of a certain pipeline with specific bindings (including material data)
 struct RenderElement
 {
-	std::uint32_t vertexOffset;
-	std::uint32_t indexOffset;
-	std::uint32_t indexCount;
+  std::uint32_t vertexOffset;
+  std::uint32_t indexOffset;
+  std::uint32_t indexCount;
   // Not implemented!
   // Material* material;
 };
@@ -71,7 +71,7 @@ private:
     glm::vec4 texCoordAndTangentAndPadding;
   };
 
-	static_assert(sizeof(Vertex) == sizeof(float) * 8);
+  static_assert(sizeof(Vertex) == sizeof(float) * 8);
 
   struct ProcessedMeshes
   {
@@ -88,7 +88,7 @@ private:
   std::unique_ptr<etna::OneShotCmdMgr> oneShotCommands;
   etna::BlockingTransferHelper transferHelper;
 
-	std::vector<RenderElement> renderElements;
+  std::vector<RenderElement> renderElements;
   std::vector<Mesh> meshes;
   std::vector<glm::mat4x4> instanceMatrices;
   std::vector<std::uint32_t> instanceMeshes;

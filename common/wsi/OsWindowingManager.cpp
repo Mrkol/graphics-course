@@ -33,8 +33,7 @@ void OsWindowingManager::onWindowSizeCb(GLFWwindow* window, int width, int heigh
 {
   if (auto it = instance->windows.find(window); it != instance->windows.end())
     if (it->second->onResize)
-      it->second->onResize({static_cast<glm::uint>(width),
-        static_cast<glm::uint>(height)});
+      it->second->onResize({static_cast<glm::uint>(width), static_cast<glm::uint>(height)});
 }
 
 OsWindowingManager::OsWindowingManager()
@@ -57,7 +56,7 @@ void OsWindowingManager::poll()
 {
   glfwPollEvents();
 
-  for (auto[_, window] : windows)
+  for (auto [_, window] : windows)
     updateWindow(*window);
 }
 
@@ -66,13 +65,14 @@ double OsWindowingManager::getTime()
   return glfwGetTime();
 }
 
-std::unique_ptr<OsWindow> OsWindowingManager::createWindow(glm::uvec2 resolution,
-  OsWindowRefreshCb refreshCb, OsWindowResizeCb resizeCb)
+std::unique_ptr<OsWindow> OsWindowingManager::createWindow(
+  glm::uvec2 resolution, OsWindowRefreshCb refresh_cb, OsWindowResizeCb resize_cb)
 {
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
   glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
 
-  auto glfwWindow = glfwCreateWindow(static_cast<int>(resolution.x), static_cast<int>(resolution.y), "Sample", nullptr, nullptr);
+  auto glfwWindow = glfwCreateWindow(
+    static_cast<int>(resolution.x), static_cast<int>(resolution.y), "Sample", nullptr, nullptr);
 
   glfwSetScrollCallback(glfwWindow, &onMouseScrollCb);
   glfwSetWindowCloseCallback(glfwWindow, &onWindowClosedCb);
@@ -82,8 +82,8 @@ std::unique_ptr<OsWindow> OsWindowingManager::createWindow(glm::uvec2 resolution
   auto result = std::unique_ptr<OsWindow>{new OsWindow};
   result->owner = this;
   result->impl = glfwWindow;
-  result->onRefresh = std::move(refreshCb);
-  result->onResize = std::move(resizeCb);
+  result->onRefresh = std::move(refresh_cb);
+  result->onResize = std::move(resize_cb);
 
   windows.emplace(glfwWindow, result.get());
   return result;
@@ -104,34 +104,45 @@ void OsWindowingManager::onWindowDestroyed(GLFWwindow* impl)
 
 void OsWindowingManager::updateWindow(OsWindow& window)
 {
-  auto transitionState = [](ButtonState& state, bool glfwState) {
-      switch (state)
-      {
-        case ButtonState::Low: if (glfwState) state = ButtonState::Rising; break;
-        case ButtonState::Rising: state = ButtonState::High; break;
-        case ButtonState::High: if (!glfwState) state = ButtonState::Falling; break;
-        case ButtonState::Falling: state = ButtonState::Low; break;
-        default: break;
-      }
-    };
+  auto transitionState = [](ButtonState& state, bool glfw_state) {
+    switch (state)
+    {
+    case ButtonState::Low:
+      if (glfw_state)
+        state = ButtonState::Rising;
+      break;
+    case ButtonState::Rising:
+      state = ButtonState::High;
+      break;
+    case ButtonState::High:
+      if (!glfw_state)
+        state = ButtonState::Falling;
+      break;
+    case ButtonState::Falling:
+      state = ButtonState::Low;
+      break;
+    default:
+      break;
+    }
+  };
 
-  auto processMb = [&window, &transitionState](MouseButton mb, int glfwMb) {
-    const bool pressed = glfwGetMouseButton(window.impl, glfwMb) == GLFW_PRESS;
+  auto processMb = [&window, &transitionState](MouseButton mb, int glfw_mb) {
+    const bool pressed = glfwGetMouseButton(window.impl, glfw_mb) == GLFW_PRESS;
     transitionState(window.mouse.buttons[static_cast<std::size_t>(mb)], pressed);
   };
 
-  #define X(mb, glfwMb) processMb(MouseButton::mb, glfwMb);
+#define X(mb, glfwMb) processMb(MouseButton::mb, glfwMb);
   ALL_MOUSE_BUTTONS
-  #undef X
+#undef X
 
-  auto processKey = [&window, &transitionState](KeyboardKey key, int glfwKey) {
-    const bool pressed = glfwGetKey(window.impl, glfwKey) == GLFW_PRESS;
+  auto processKey = [&window, &transitionState](KeyboardKey key, int glfw_key) {
+    const bool pressed = glfwGetKey(window.impl, glfw_key) == GLFW_PRESS;
     transitionState(window.keyboard.keys[static_cast<std::size_t>(key)], pressed);
   };
 
-  #define X(mb, glfwMb) processKey(KeyboardKey::mb, glfwMb);
+#define X(mb, glfwMb) processKey(KeyboardKey::mb, glfwMb);
   ALL_KEYBOARD_KEYS
-  #undef X
+#undef X
 
   if (window.captureMouse)
   {

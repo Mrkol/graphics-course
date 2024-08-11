@@ -19,7 +19,7 @@ public:
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 private:
-  etna::GlobalContext *context;
+  etna::GlobalContext* context;
 
   std::unique_ptr<etna::OneShotCmdMgr> cmdMgr;
   std::unique_ptr<etna::BlockingTransferHelper> transferHelper;
@@ -38,4 +38,4 @@ private:
 };
 
 
-#endif //SIMPLE_COMPUTE_H
+#endif // SIMPLE_COMPUTE_H

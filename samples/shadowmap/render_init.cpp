@@ -5,41 +5,38 @@
 #include "gui/ImGuiRenderer.hpp"
 
 
-Renderer::Renderer(glm::uvec2 res) : resolution{res}
+Renderer::Renderer(glm::uvec2 res)
+  : resolution{res}
 {
   uniformParams.baseColor = {0.9f, 0.92f, 1.0f};
 }
 
 void Renderer::initVulkan(std::span<const char*> instance_extensions)
 {
-  std::vector<const char*> m_instanceExtensions;
+  std::vector<const char*> instanceExtensions;
 
   for (auto ext : instance_extensions)
-    m_instanceExtensions.push_back(ext);
+    instanceExtensions.push_back(ext);
 
-  #ifndef NDEBUG
-    m_instanceExtensions.push_back("VK_EXT_debug_report");
-  #endif
+#ifndef NDEBUG
+  instanceExtensions.push_back("VK_EXT_debug_report");
+#endif
 
-  std::vector<const char*> m_deviceExtensions;
+  std::vector<const char*> deviceExtensions;
 
-  m_deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+  deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
 
-  etna::initialize(etna::InitParams
-    {
-      .applicationName = "ShadowmapSample",
-      .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
-      .instanceExtensions = m_instanceExtensions,
-      .deviceExtensions = m_deviceExtensions,
-      .features = vk::PhysicalDeviceFeatures2
-        {
-          .features = {}
-        },
-      // Replace with an index if etna detects your preferred GPU incorrectly
-      .physicalDeviceIndexOverride = {},
-      // How much frames we buffer on the GPU without waiting for their completion on the CPU
-      .numFramesInFlight = 2
-    });
+  etna::initialize(etna::InitParams{
+    .applicationName = "ShadowmapSample",
+    .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
+    .instanceExtensions = instanceExtensions,
+    .deviceExtensions = deviceExtensions,
+    .features = vk::PhysicalDeviceFeatures2{.features = {}},
+    // Replace with an index if etna detects your preferred GPU incorrectly
+    .physicalDeviceIndexOverride = {},
+    // How much frames we buffer on the GPU without waiting for their completion on the CPU
+    .numFramesInFlight = 2,
+  });
 
   context = &etna::get_context();
 
@@ -70,10 +67,10 @@ void Renderer::recreateSwapchain(glm::uvec2 res)
 {
   ETNA_CHECK_VK_RESULT(context->getDevice().waitIdle());
 
-  auto[w, h] = window->recreateSwapchain(etna::Window::DesiredProperties{
-      .resolution = {res.x, res.y},
-      .vsync = true,
-    });
+  auto [w, h] = window->recreateSwapchain(etna::Window::DesiredProperties{
+    .resolution = {res.x, res.y},
+    .vsync = true,
+  });
   resolution = {w, h};
 
   // Most resources depend on the current resolution, so we recreate them.
