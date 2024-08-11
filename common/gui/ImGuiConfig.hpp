@@ -1,0 +1,4 @@
+#pragma once
+
+#define IMGUI_IMPL_VULKAN_NO_PROTOTYPES
+#define IMGUI_DEFINE_MATH_OPERATORS
