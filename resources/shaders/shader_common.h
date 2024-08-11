@@ -7,6 +7,9 @@
 
 #include <glm/glm.hpp>
 
+
+// NOLINTBEGIN
+
 // NOTE: This is technically completely wrong,
 // as GLSL words are guaranteed to be 32-bit,
 // while C++ unsigned int can be 16-bit.
@@ -49,5 +52,7 @@ struct UniformParams
   shader_vec3  baseColor;
   shader_bool  animateLightColor;
 };
+
+// NOLINTEND
 
 #endif // SHADER_COMMON_H_INCLUDED

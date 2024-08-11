@@ -28,7 +28,7 @@ public:
 
   void debugInput(const Keyboard& kb);
 
-  void updateView(const Camera &main, const Camera &shadow);
+  void updateView(const Camera& main, const Camera& shadow);
 
   void drawFrame(float dt);
 
@@ -57,10 +57,10 @@ private:
   glm::mat4x4 lightMatrix;
   glm::vec3 lightPos;
 
-  UniformParams uniformParams {};
+  UniformParams uniformParams{};
 
-  etna::GraphicsPipeline basicForwardPipeline {};
-  etna::GraphicsPipeline shadowPipeline {};
+  etna::GraphicsPipeline basicForwardPipeline{};
+  etna::GraphicsPipeline shadowPipeline{};
 
   glm::uvec2 resolution;
 
@@ -73,16 +73,18 @@ private:
 
   struct ShadowMapCam
   {
-    float  radius = 10;
-    float  lightTargetDist = 24;
-    bool   usePerspectiveM = false;
+    float radius = 10;
+    float lightTargetDist = 24;
+    bool usePerspectiveM = false;
   } lightProps;
 
   void drawFrame(bool draw_gui);
 
-  void renderWorld(vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view);
+  void renderWorld(
+    vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view);
 
-  void renderScene(vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout);
+  void renderScene(
+    vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout);
 
   void loadShaders();
 
@@ -93,5 +95,5 @@ private:
   void allocateResources();
   void preparePipelines();
 
-  void DrawGui();
+  void drawGui();
 };

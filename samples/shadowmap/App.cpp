@@ -6,13 +6,14 @@
 App::App()
 {
   glm::uvec2 initialRes = {1280, 720};
-  mainWindow = windowing.createWindow(initialRes,
-    [this](){
+  mainWindow = windowing.createWindow(
+    initialRes,
+    [this]() {
       // NOTE: this is only called when the window is being resized.
       renderer->updateView(mainCam, shadowCam);
       renderer->drawFrame(static_cast<float>(windowing.getTime()));
     },
-    [this](glm::uvec2 res){
+    [this](glm::uvec2 res) {
       if (res.x == 0 || res.y == 0)
         return;
 
@@ -26,12 +27,11 @@ App::App()
 
   auto surface = mainWindow->createVkSurface(etna::get_context().getInstance());
 
-  renderer->initPresentation(std::move(surface), [window = mainWindow.get()]() {
-      return window->getResolution();
-  });
+  renderer->initPresentation(
+    std::move(surface), [window = mainWindow.get()]() { return window->getResolution(); });
 
-  // TODO: this is bad design, this initialization is dependent on the current ImGui context, but we pass
-  // it implicitly here instead of explicitly. Beware if trying to do something tricky.
+  // TODO: this is bad design, this initialization is dependent on the current ImGui context, but we
+  // pass it implicitly here instead of explicitly. Beware if trying to do something tricky.
   ImGuiRenderer::enableImGuiForWindow(mainWindow->native());
 
   shadowCam.lookAt({-8, 10, 8}, {0, 0, 0}, {0, 1, 0});
@@ -77,7 +77,7 @@ void App::processInput(float dt)
   if (mainWindow->mouse[MouseButton::mbRight] == ButtonState::Rising)
     mainWindow->captureMouse = !mainWindow->captureMouse;
 
-  auto &camToControl = controlShadowCam ? shadowCam : mainCam;
+  auto& camToControl = controlShadowCam ? shadowCam : mainCam;
 
   moveCam(camToControl, mainWindow->keyboard, dt);
   if (mainWindow->captureMouse)

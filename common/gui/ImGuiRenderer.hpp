@@ -14,7 +14,7 @@ class ImGuiRenderer
 public:
   static void enableImGuiForWindow(GLFWwindow *window);
 
-  ImGuiRenderer(vk::Format a_target_format);
+  explicit ImGuiRenderer(vk::Format target_format);
 
   void nextFrame();
 
