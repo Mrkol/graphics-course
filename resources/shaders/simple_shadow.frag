@@ -43,6 +43,6 @@ void main()
   vec3 lightDir   = normalize(params.lightPos - surf.wPos);
   vec4 lightColor = max(dot(surf.wNorm, lightDir), 0.0f) * lightColor1;
   const float ambient = 0.05;
-  // Light is formula pretty arbitrary and most definitely wrong
+  // Light formula is pretty arbitrary and most definitely wrong
   out_fragColor = (lightColor * (shadow + ambient)) * vec4(params.baseColor, 1.0f);
 }
