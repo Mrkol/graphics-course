@@ -1,0 +1,2 @@
+add_subdirectory(shadowmap)
+add_subdirectory(simple_compute)
