@@ -54,6 +54,9 @@ OsWindowingManager::~OsWindowingManager()
 
 void OsWindowingManager::poll()
 {
+  for (auto [_, window] : windows)
+    window->mouse.scrollDelta = {0, 0};
+
   glfwPollEvents();
 
   for (auto [_, window] : windows)
