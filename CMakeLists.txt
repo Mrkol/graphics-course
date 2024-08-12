@@ -17,7 +17,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # NOTE: uncomment to run with ASAN (works even on windows!)
 # Also note that I couldn't figure out how to make ASAN work on windows with clang & ldd.
-if (false)
+if(false)
   if (MSVC)
     add_compile_options("/fsanitize=address")
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
@@ -30,7 +30,7 @@ include("cmake/thirdparty.cmake")
 include("cmake/shaders.cmake")
 
 
-if (MSVC)
+if(MSVC)
   add_compile_options(/W3)
 else()
   add_compile_options(-Wall -Wextra)
@@ -40,8 +40,6 @@ add_compile_definitions(
   GRAPHICS_COURSE_RESOURCES_ROOT="${PROJECT_SOURCE_DIR}/resources"
   GRAPHICS_COURSE_ROOT="${PROJECT_SOURCE_DIR}"
 )
-
-add_subdirectory(../etna etna)
 
 add_subdirectory(common)
 add_subdirectory(samples)
