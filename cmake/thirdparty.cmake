@@ -12,9 +12,10 @@ CPMAddPackage(
     "GLFW_BULID_DOCS OFF"
 )
 
-
+# Cross-platform 3D graphics
 find_package(Vulkan REQUIRED)
 
+# Dear ImGui -- easiest way to do GUI
 CPMAddPackage(
   NAME ImGui
   GITHUB_REPOSITORY ocornut/imgui
@@ -35,9 +36,10 @@ if (ImGui_ADDED)
   target_compile_definitions(DearImGui PUBLIC IMGUI_USER_CONFIG="${CMAKE_CURRENT_SOURCE_DIR}/common/gui/ImGuiConfig.hpp")
 endif ()
 
-
+# Vector maths for graphics
 CPMAddPackage("gh:g-truc/glm#master")
 
+# glTF model parser
 CPMAddPackage(
   NAME tinygltf
   GITHUB_REPOSITORY syoyo/tinygltf
@@ -49,8 +51,16 @@ CPMAddPackage(
 
 # Uncomment to contribute to etna
 set(CPM_etna_SOURCE "../../etna")
+
+# etna -- our wrapper around Vulkan to make life easier
 CPMAddPackage(
   NAME etna
   GITHUB_REPOSITORY AlexandrShcherbakov/etna
   GIT_TAG master
+)
+
+# Type-erased function containers that actually work
+CPMAddPackage(
+  GITHUB_REPOSITORY Naios/function2
+  GIT_TAG 4.2.4
 )
