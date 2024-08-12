@@ -9,8 +9,8 @@ add_executable(shadowmap
   App.cpp
 )
 
-target_link_libraries(shadowmap PRIVATE glfw etna glm::glm
-  wsi gui scene render_utils)
+target_link_libraries(shadowmap
+  PRIVATE glfw etna glm::glm wsi gui scene render_utils)
 
 # Manually add render_utils includes because no cmake 3.30
 target_shader_include_directories(shadowmap PRIVATE "$<TARGET_PROPERTY:render_utils,INTERFACE_SHADER_INCLUDE_DIRECTORIES>")

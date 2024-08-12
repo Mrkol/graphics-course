@@ -1,8 +1,10 @@
 
-add_executable(simple_compute main.cpp
+add_executable(simple_compute
+  main.cpp
   simple_compute.cpp
   compute_init.cpp
-  execute.cpp)
+  execute.cpp
+)
 
 target_link_libraries(simple_compute PRIVATE glm::glm etna)
 
