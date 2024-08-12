@@ -1,8 +1,9 @@
-#ifndef UNPACK_ATTRIBUTES_H_INCLUDED
-#define UNPACK_ATTRIBUTES_H_INCLUDED
+#ifndef UNPACK_ATTRIBUTES_GLSL_INCLUDED
+#define UNPACK_ATTRIBUTES_GLSL_INCLUDED
 
+// NOTE: .glsl extension is used for helper files with shader code
 
-vec3 DecodeNormal(uint a_data)
+vec3 decode_normal(uint a_data)
 {
   const uint a_enc_x = (a_data  & 0x0000FFFFu);
   const uint a_enc_y = ((a_data & 0xFFFF0000u) >> 16);
@@ -21,4 +22,4 @@ vec3 DecodeNormal(uint a_data)
   return vec3(x, y, z);
 }
 
-#endif // UNPACK_ATTRIBUTES_H_INCLUDED
+#endif // UNPACK_ATTRIBUTES_GLSL_INCLUDED

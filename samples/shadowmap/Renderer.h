@@ -10,7 +10,7 @@
 #include "scene/SceneManager.hpp"
 #include "scene/Camera.h"
 #include "render_utils/QuadRenderer.hpp"
-#include "../../resources/shaders/shader_common.h"
+#include "shaders/UniformParams.h"
 
 
 class ImGuiRenderer;

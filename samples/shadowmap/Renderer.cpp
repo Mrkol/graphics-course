@@ -64,10 +64,8 @@ void Renderer::loadShaders()
 {
   etna::create_program(
     "simple_material",
-    {GRAPHICS_COURSE_ROOT "/resources/shaders/simple_shadow.frag.spv",
-     GRAPHICS_COURSE_ROOT "/resources/shaders/simple.vert.spv"});
-  etna::create_program(
-    "simple_shadow", {GRAPHICS_COURSE_ROOT "/resources/shaders/simple.vert.spv"});
+    {SHADOWMAP_SHADERS_ROOT "simple_shadow.frag.spv", SHADOWMAP_SHADERS_ROOT "simple.vert.spv"});
+  etna::create_program("simple_shadow", {SHADOWMAP_SHADERS_ROOT "simple.vert.spv"});
 }
 
 void Renderer::setupPipelines()

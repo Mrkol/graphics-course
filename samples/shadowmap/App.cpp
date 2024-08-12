@@ -37,7 +37,7 @@ App::App()
   shadowCam.lookAt({-8, 10, 8}, {0, 0, 0}, {0, 1, 0});
   mainCam.lookAt({0, 10, 10}, {0, 0, 0}, {0, 1, 0});
 
-  renderer->loadScene(GRAPHICS_COURSE_ROOT "/resources/scenes/low_poly_dark_town/scene.gltf");
+  renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/low_poly_dark_town/scene.gltf");
 }
 
 void App::run()

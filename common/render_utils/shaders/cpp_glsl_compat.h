@@ -1,6 +1,7 @@
 #ifndef SHADER_COMMON_H_INCLUDED
 #define SHADER_COMMON_H_INCLUDED
 
+// NOTE: .h extension is used for files that can be included both into GLSL and into C++
 // GLSL-C++ datatype compatibility layer
 
 #ifdef __cplusplus
@@ -42,16 +43,6 @@ using shader_bool  = glm::uint;
 #define shader_bool  bool
 
 #endif
-
-
-struct UniformParams
-{
-  shader_mat4  lightMatrix;
-  shader_vec3  lightPos;
-  shader_float time;
-  shader_vec3  baseColor;
-  shader_bool  animateLightColor;
-};
 
 // NOLINTEND
 
