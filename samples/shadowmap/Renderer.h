@@ -5,6 +5,7 @@
 #include <etna/PerFrameCmdMgr.hpp>
 #include <etna/Sampler.hpp>
 #include <glm/fwd.hpp>
+#include <function2/function2.hpp>
 
 #include "wsi/Keyboard.hpp"
 #include "scene/SceneManager.hpp"
