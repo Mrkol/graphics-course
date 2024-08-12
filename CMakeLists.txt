@@ -10,7 +10,7 @@ if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
     )
 endif()
 
-include("get_cpm.cmake")
+include("cmake/get_cpm.cmake")
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
@@ -26,7 +26,8 @@ if (false)
   endif()
 endif()
 
-include("thirdparty.cmake")
+include("cmake/thirdparty.cmake")
+include("cmake/shaders.cmake")
 
 
 if (MSVC)
@@ -35,7 +36,10 @@ else()
   add_compile_options(-Wall -Wextra)
 endif()
 
-add_compile_definitions(GRAPHICS_COURSE_ROOT="${PROJECT_SOURCE_DIR}")
+add_compile_definitions(
+  GRAPHICS_COURSE_RESOURCES_ROOT="${PROJECT_SOURCE_DIR}/resources"
+  GRAPHICS_COURSE_ROOT="${PROJECT_SOURCE_DIR}"
+)
 
 add_subdirectory(../etna etna)
 
