@@ -2,10 +2,7 @@
 add_executable(shadowmap
   main.cpp
   Renderer.cpp
-  render_init.cpp
-  update.cpp
-  draw.cpp
-  gui.cpp
+  WorldRenderer.cpp
   App.cpp
 )
 

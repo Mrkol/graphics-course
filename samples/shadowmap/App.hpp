@@ -1,11 +1,15 @@
 #pragma once
 
 #include "wsi/OsWindowingManager.hpp"
-#include "scene/Camera.h"
+#include "scene/Camera.hpp"
 
-#include "Renderer.h"
+#include "Renderer.hpp"
 
 
+/**
+ * Main class of the application. Contains things that are not strictly
+ * related to rendering, e.g. OS window creation, input handling.
+ */
 class App
 {
 public:
@@ -15,6 +19,7 @@ public:
 
 private:
   void processInput(float dt);
+  void drawFrame();
 
   void moveCam(Camera& cam, const Keyboard& kb, float dt);
   void rotateCam(Camera& cam, const Mouse& ms, float dt);
