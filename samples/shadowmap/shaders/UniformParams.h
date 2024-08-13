@@ -10,7 +10,6 @@ struct UniformParams
   shader_vec3  lightPos;
   shader_float time;
   shader_vec3  baseColor;
-  shader_bool  animateLightColor;
 };
 
 
