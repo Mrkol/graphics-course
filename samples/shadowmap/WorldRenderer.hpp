@@ -66,6 +66,9 @@ private:
   } lightProps;
 
   UniformParams uniformParams{
+    .lightMatrix = {},
+    .lightPos = {},
+    .time = {},
     .baseColor = {0.9f, 0.92f, 1.0f},
   };
 
