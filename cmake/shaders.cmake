@@ -66,6 +66,10 @@ function(target_add_shaders tgt)
   if(TARGET ${custom_target_name})
     message(FATAL_ERROR "Sorry, you can't call target_add_shaders multiple times cuz it's unimplemented. Fell free to create a PR.")
   else()
+    set_target_properties(${tgt} PROPERTIES
+      TRANSITIVE_COMPILE_PROPERTIES "SHADER_INCLUDE_DIRECTORIES"
+    )
+
     add_custom_target(${custom_target_name} DEPENDS ${SPIRV_BINARY_FILES})
     add_dependencies(${tgt} ${custom_target_name})
     add_compile_definitions(${tgt}
