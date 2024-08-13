@@ -45,5 +45,5 @@ void main()
   vec4 lightColor = max(dot(surf.wNorm, lightDir), 0.0f) * lightColor1;
   const float ambient = 0.05;
   // Light formula is pretty arbitrary and most definitely wrong
-  out_fragColor = (lightColor * (shadow + ambient)) * vec4(params.baseColor, 1.0f);
+  out_fragColor = (lightColor * shadow + ambient) * vec4(params.baseColor, 1.0f);
 }

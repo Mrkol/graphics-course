@@ -10,8 +10,7 @@ App::App()
     initialRes,
     [this]() {
       // NOTE: this is only called when the window is being resized.
-      renderer->updateView(mainCam, shadowCam);
-      renderer->drawFrame(static_cast<float>(windowing.getTime()));
+      drawFrame();
     },
     [this](glm::uvec2 res) {
       if (res.x == 0 || res.y == 0)
@@ -27,7 +26,7 @@ App::App()
 
   auto surface = mainWindow->createVkSurface(etna::get_context().getInstance());
 
-  renderer->initPresentation(
+  renderer->initFrameDelivery(
     std::move(surface), [window = mainWindow.get()]() { return window->getResolution(); });
 
   // TODO: this is bad design, this initialization is dependent on the current ImGui context, but we
@@ -53,11 +52,7 @@ void App::run()
 
     processInput(diffTime);
 
-    renderer->debugInput(mainWindow->keyboard);
-
-    renderer->updateView(mainCam, shadowCam);
-
-    renderer->drawFrame(static_cast<float>(currTime));
+    drawFrame();
   }
 }
 
@@ -82,6 +77,18 @@ void App::processInput(float dt)
   moveCam(camToControl, mainWindow->keyboard, dt);
   if (mainWindow->captureMouse)
     rotateCam(camToControl, mainWindow->mouse, dt);
+
+  renderer->debugInput(mainWindow->keyboard);
+}
+
+void App::drawFrame()
+{
+  renderer->update(FramePacket{
+    .mainCam = mainCam,
+    .shadowCam = shadowCam,
+    .currentTime = static_cast<float>(windowing.getTime()),
+  });
+  renderer->drawFrame();
 }
 
 void App::moveCam(Camera& cam, const Keyboard& kb, float dt)
