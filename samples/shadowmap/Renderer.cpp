@@ -1,200 +1,184 @@
-#include "Renderer.h"
+#include "Renderer.hpp"
 
 #include <etna/GlobalContext.hpp>
 #include <etna/Etna.hpp>
 #include <etna/RenderTargetStates.hpp>
 #include <etna/PipelineManager.hpp>
-#include <vulkan/vulkan_core.h>
+#include <imgui.h>
+
+#include <gui/ImGuiRenderer.hpp>
 
 
-/// RESOURCE ALLOCATION
-
-void Renderer::allocateResources()
+Renderer::Renderer(glm::uvec2 res)
+  : resolution{res}
 {
-  mainViewDepth = context->createImage(etna::Image::CreateInfo{
-    .extent = vk::Extent3D{resolution.x, resolution.y, 1},
-    .name = "main_view_depth",
-    .format = vk::Format::eD32Sfloat,
-    .imageUsage = vk::ImageUsageFlagBits::eDepthStencilAttachment,
+}
+
+void Renderer::initVulkan(std::span<const char*> instance_extensions)
+{
+  std::vector<const char*> instanceExtensions;
+
+  for (auto ext : instance_extensions)
+    instanceExtensions.push_back(ext);
+
+#ifndef NDEBUG
+  instanceExtensions.push_back("VK_EXT_debug_report");
+#endif
+
+  std::vector<const char*> deviceExtensions;
+
+  deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+
+  etna::initialize(etna::InitParams{
+    .applicationName = "ShadowmapSample",
+    .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
+    .instanceExtensions = instanceExtensions,
+    .deviceExtensions = deviceExtensions,
+    .features = vk::PhysicalDeviceFeatures2{.features = {}},
+    // Replace with an index if etna detects your preferred GPU incorrectly
+    .physicalDeviceIndexOverride = {},
+    // How much frames we buffer on the GPU without waiting for their completion on the CPU
+    .numFramesInFlight = 2,
+  });
+}
+
+void Renderer::initFrameDelivery(vk::UniqueSurfaceKHR a_surface, ResolutionProvider res_provider)
+{
+  auto &ctx = etna::get_context();
+
+  resolutionProvider = std::move(res_provider);
+  commandManager = ctx.createPerFrameCmdMgr();
+
+  window = ctx.createWindow(etna::Window::CreateInfo{
+    .surface = std::move(a_surface),
   });
 
-  shadowMap = context->createImage(etna::Image::CreateInfo{
-    .extent = vk::Extent3D{2048, 2048, 1},
-    .name = "shadow_map",
-    .format = vk::Format::eD16Unorm,
-    .imageUsage =
-      vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
+  auto [w, h] = window->recreateSwapchain(etna::Window::DesiredProperties{
+    .resolution = {resolution.x, resolution.y},
+    .vsync = true,
   });
+  resolution = {w, h};
 
-  defaultSampler = etna::Sampler(etna::Sampler::CreateInfo{.name = "default_sampler"});
-  constants = context->createBuffer(etna::Buffer::CreateInfo{
-    .size = sizeof(UniformParams),
-    .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer,
-    .memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY,
-    .name = "constants",
+  worldRenderer = std::make_unique<WorldRenderer>();
+
+  worldRenderer->allocateResources(resolution);
+  worldRenderer->loadShaders();
+  worldRenderer->setupPipelines(window->getCurrentFormat());
+
+  guiRenderer = std::make_unique<ImGuiRenderer>(window->getCurrentFormat());
+}
+
+void Renderer::recreateSwapchain(glm::uvec2 res)
+{
+  auto &ctx = etna::get_context();
+
+  ETNA_CHECK_VK_RESULT(ctx.getDevice().waitIdle());
+
+  auto [w, h] = window->recreateSwapchain(etna::Window::DesiredProperties{
+    .resolution = {res.x, res.y},
+    .vsync = true,
   });
+  resolution = {w, h};
 
-  constants.map();
+  // Most resources depend on the current resolution, so we recreate them.
+  worldRenderer->allocateResources(resolution);
+
+  // Format of the swapchain CAN change on android
+  worldRenderer->setupPipelines(window->getCurrentFormat());
 }
 
 void Renderer::loadScene(std::filesystem::path path)
 {
-  sceneMgr->selectScene(path);
-
-  // TODO: Make a separate stage
-  loadShaders();
-  preparePipelines();
+  worldRenderer->loadScene(path);
 }
 
-
-/// PIPELINES CREATION
-
-void Renderer::preparePipelines()
+void Renderer::debugInput(const Keyboard& kb)
 {
-  // create full screen quad for debug purposes
-  //
-  quadRenderer = std::make_unique<QuadRenderer>(QuadRenderer::CreateInfo{
-    .format = window->getCurrentFormat(),
-    .rect = {{0, 0}, {512, 512}},
-  });
-  setupPipelines();
-}
+  worldRenderer->debugInput(kb);
 
-void Renderer::loadShaders()
-{
-  etna::create_program(
-    "simple_material",
-    {SHADOWMAP_SHADERS_ROOT "simple_shadow.frag.spv", SHADOWMAP_SHADERS_ROOT "simple.vert.spv"});
-  etna::create_program("simple_shadow", {SHADOWMAP_SHADERS_ROOT "simple.vert.spv"});
-}
-
-void Renderer::setupPipelines()
-{
-  etna::VertexShaderInputDescription sceneVertexInputDesc{
-    .bindings = {etna::VertexShaderInputDescription::Binding{
-      .byteStreamDescription = sceneMgr->getVertexFormatDescription(),
-    }},
-  };
-
-  auto& pipelineManager = etna::get_context().getPipelineManager();
-  basicForwardPipeline = pipelineManager.createGraphicsPipeline(
-    "simple_material",
-    etna::GraphicsPipeline::CreateInfo{
-      .vertexShaderInput = sceneVertexInputDesc,
-      .rasterizationConfig =
-        vk::PipelineRasterizationStateCreateInfo{
-          .polygonMode = vk::PolygonMode::eFill,
-          .cullMode = vk::CullModeFlagBits::eBack,
-          .frontFace = vk::FrontFace::eCounterClockwise,
-          .lineWidth = 1.f,
-        },
-      .fragmentShaderOutput =
-        {
-          .colorAttachmentFormats = {window->getCurrentFormat()},
-          .depthAttachmentFormat = vk::Format::eD32Sfloat,
-        },
-    });
-  shadowPipeline = pipelineManager.createGraphicsPipeline(
-    "simple_shadow",
-    etna::GraphicsPipeline::CreateInfo{
-      .vertexShaderInput = sceneVertexInputDesc,
-      .rasterizationConfig =
-        vk::PipelineRasterizationStateCreateInfo{
-          .polygonMode = vk::PolygonMode::eFill,
-          .cullMode = vk::CullModeFlagBits::eBack,
-          .frontFace = vk::FrontFace::eCounterClockwise,
-          .lineWidth = 1.f,
-        },
-      .fragmentShaderOutput =
-        {
-          .depthAttachmentFormat = vk::Format::eD16Unorm,
-        },
-    });
-}
-
-
-/// COMMAND BUFFER FILLING
-
-void Renderer::renderScene(
-  vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout)
-{
-  if (!sceneMgr->getVertexBuffer())
-    return;
-
-  cmd_buf.bindVertexBuffers(0, {sceneMgr->getVertexBuffer()}, {0});
-  cmd_buf.bindIndexBuffer(sceneMgr->getIndexBuffer(), 0, vk::IndexType::eUint32);
-
-  pushConst2M.projView = glob_tm;
-
-  auto instanceMeshes = sceneMgr->getInstanceMeshes();
-  auto instanceMatrices = sceneMgr->getInstanceMatrices();
-
-  auto meshes = sceneMgr->getMeshes();
-  auto relems = sceneMgr->getRenderElements();
-
-  for (std::size_t instIdx = 0; instIdx < instanceMeshes.size(); ++instIdx)
+  if (kb[KeyboardKey::kB] == ButtonState::Falling)
   {
-    pushConst2M.model = instanceMatrices[instIdx];
+    std::system("cd " GRAPHICS_COURSE_ROOT "/build"
+                " && cmake --build . --target shadowmap_shaders");
+    ETNA_CHECK_VK_RESULT(etna::get_context().getDevice().waitIdle());
+    etna::reload_shaders();
+  }
+}
 
-    cmd_buf.pushConstants<PushConstants>(
-      pipeline_layout, vk::ShaderStageFlagBits::eVertex, 0, {pushConst2M});
+void Renderer::update(const FramePacket& packet)
+{
+  worldRenderer->update(packet);
+}
 
-    const auto meshIdx = instanceMeshes[instIdx];
+void Renderer::drawFrame()
+{
+  {
+    guiRenderer->nextFrame();
+    ImGui::NewFrame();
+    worldRenderer->drawGui();
+    ImGui::Render();
+  }
 
-    for (std::size_t j = 0; j < meshes[meshIdx].relemCount; ++j)
+  auto currentCmdBuf = commandManager->acquireNext();
+
+  // TODO: this makes literally 0 sense here, rename/refactor,
+  // it doesn't actually begin anything, just resets descriptor pools
+  etna::begin_frame();
+
+  auto nextSwapchainImage = window->acquireNext();
+
+  // NOTE: here, we skip frames when the window is in the process of being
+  // re-sized. This is not mandatory, it is possible to submit frames to a
+  // "sub-optimal" swap chain and still get something drawn while resizing,
+  // but only on some platforms (not windows+nvidia, sadly).
+  if (nextSwapchainImage)
+  {
+    auto [image, view, availableSem] = *nextSwapchainImage;
+
+    ETNA_CHECK_VK_RESULT(
+      currentCmdBuf.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse}));
+
+    worldRenderer->renderWorld(currentCmdBuf, image, view);
+
     {
-      const auto relemIdx = meshes[meshIdx].firstRelem + j;
-      const auto& relem = relems[relemIdx];
-      cmd_buf.drawIndexed(relem.indexCount, 1, relem.indexOffset, relem.vertexOffset, 0);
+      ImDrawData* pDrawData = ImGui::GetDrawData();
+      guiRenderer->render(
+        currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, image, view, pDrawData);
     }
+
+    etna::set_state(
+      currentCmdBuf,
+      image,
+      vk::PipelineStageFlagBits2::eBottomOfPipe,
+      {},
+      vk::ImageLayout::ePresentSrcKHR,
+      vk::ImageAspectFlagBits::eColor);
+
+    etna::flush_barriers(currentCmdBuf);
+
+    ETNA_CHECK_VK_RESULT(currentCmdBuf.end());
+
+    auto renderingDone = commandManager->submit(std::move(currentCmdBuf), std::move(availableSem));
+
+    const bool presented = window->present(std::move(renderingDone), view);
+
+    if (!presented)
+      nextSwapchainImage = std::nullopt;
+  }
+
+  etna::end_frame();
+
+  if (!nextSwapchainImage)
+  {
+    auto res = resolutionProvider();
+    // On windows, we get 0,0 while the window is minimized and
+    // must skip frames until the window is un-minimized again
+    if (res.x != 0 && res.y != 0)
+      recreateSwapchain(res);
   }
 }
 
-void Renderer::renderWorld(
-  vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view)
+Renderer::~Renderer()
 {
-  // draw scene to shadowmap
-
-  {
-    etna::RenderTargetState renderTargets(
-      cmd_buf,
-      {{0, 0}, {2048, 2048}},
-      {},
-      {.image = shadowMap.get(), .view = shadowMap.getView({})});
-
-    cmd_buf.bindPipeline(vk::PipelineBindPoint::eGraphics, shadowPipeline.getVkPipeline());
-    renderScene(cmd_buf, lightMatrix, shadowPipeline.getVkPipelineLayout());
-  }
-
-  // draw final scene to screen
-
-  {
-    auto simpleMaterialInfo = etna::get_shader_program("simple_material");
-
-    auto set = etna::create_descriptor_set(
-      simpleMaterialInfo.getDescriptorLayoutId(0),
-      cmd_buf,
-      {etna::Binding{0, constants.genBinding()},
-       etna::Binding{
-         1, shadowMap.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
-
-    etna::RenderTargetState renderTargets(
-      cmd_buf,
-      {{0, 0}, {resolution.x, resolution.y}},
-      {{.image = target_image, .view = target_image_view}},
-      {.image = mainViewDepth.get(), .view = mainViewDepth.getView({})});
-
-    cmd_buf.bindPipeline(vk::PipelineBindPoint::eGraphics, basicForwardPipeline.getVkPipeline());
-    cmd_buf.bindDescriptorSets(
-      vk::PipelineBindPoint::eGraphics,
-      basicForwardPipeline.getVkPipelineLayout(),
-      0,
-      {set.getVkSet()},
-      {});
-
-    renderScene(cmd_buf, worldViewProj, basicForwardPipeline.getVkPipelineLayout());
-  }
-
-  if (drawDebugFSQuad)
-    quadRenderer->render(cmd_buf, target_image, target_image_view, shadowMap, defaultSampler);
+  ETNA_CHECK_VK_RESULT(etna::get_context().getDevice().waitIdle());
 }

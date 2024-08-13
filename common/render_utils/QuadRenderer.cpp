@@ -10,10 +10,14 @@
 QuadRenderer::QuadRenderer(CreateInfo info)
 {
   rect = info.rect;
-  programId = etna::create_program(
-    "quad_renderer",
-    {RENDER_UTILS_SHADERS_ROOT "quad.vert.spv",
-     RENDER_UTILS_SHADERS_ROOT "quad.frag.spv"});
+
+  programId = etna::get_program_id("quad_renderer");
+
+  if (programId == etna::ShaderProgramId::Invalid)
+    programId = etna::create_program(
+      "quad_renderer",
+      {RENDER_UTILS_SHADERS_ROOT "quad.vert.spv",
+      RENDER_UTILS_SHADERS_ROOT "quad.frag.spv"});
 
   auto& pipelineManager = etna::get_context().getPipelineManager();
   pipeline = pipelineManager.createGraphicsPipeline(
