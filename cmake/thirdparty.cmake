@@ -49,9 +49,6 @@ CPMAddPackage(
     "TINYGLTF_INSTALL OFF"
 )
 
-# Uncomment to contribute to etna
-set(CPM_etna_SOURCE "../../etna")
-
 # etna -- our wrapper around Vulkan to make life easier
 CPMAddPackage(
   NAME etna
