@@ -50,7 +50,7 @@ std::optional<tinygltf::Model> SceneManager::loadModel(std::filesystem::path pat
     !model.extensions.empty() || !model.extensionsRequired.empty() || !model.extensionsUsed.empty())
     spdlog::warn("glTF: No glTF extensions are currently implemented!");
 
-  return std::move(model);
+  return model;
 }
 
 SceneManager::ProcessedInstances SceneManager::processInstances(const tinygltf::Model& model) const
