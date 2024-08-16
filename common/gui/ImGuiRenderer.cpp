@@ -49,8 +49,8 @@ void ImGuiRenderer::createDescriptorPool()
 
   vk::DescriptorPoolCreateInfo info{
     .flags = vk::DescriptorPoolCreateFlagBits::eFreeDescriptorSet,
-    .maxSets = descrTypes.size() * 1000,
-    .poolSizeCount = descrTypes.size(),
+    .maxSets = static_cast<std::uint32_t>(descrTypes.size() * 1000),
+    .poolSizeCount = static_cast<std::uint32_t>(descrTypes.size()),
     .pPoolSizes = descrTypes.data(),
   };
 
