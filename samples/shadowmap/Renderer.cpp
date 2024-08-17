@@ -135,8 +135,7 @@ void Renderer::drawFrame()
   {
     auto [image, view, availableSem] = *nextSwapchainImage;
 
-    ETNA_CHECK_VK_RESULT(
-      currentCmdBuf.begin({.flags = vk::CommandBufferUsageFlagBits::eSimultaneousUse}));
+    ETNA_CHECK_VK_RESULT(currentCmdBuf.begin(vk::CommandBufferBeginInfo{}));
 
     worldRenderer->renderWorld(currentCmdBuf, image, view);
 
