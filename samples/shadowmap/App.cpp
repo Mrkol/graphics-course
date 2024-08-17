@@ -6,18 +6,22 @@
 App::App()
 {
   glm::uvec2 initialRes = {1280, 720};
-  mainWindow = windowing.createWindow(
-    initialRes,
-    [this]() {
-      // NOTE: this is only called when the window is being resized.
-      drawFrame();
-    },
-    [this](glm::uvec2 res) {
-      if (res.x == 0 || res.y == 0)
-        return;
+  mainWindow = windowing.createWindow(OsWindow::CreateInfo{
+    .resolution = initialRes,
+    .resizeable = true,
+    .refreshCb =
+      [this]() {
+        // NOTE: this is only called when the window is being resized.
+        drawFrame();
+      },
+    .resizeCb =
+      [this](glm::uvec2 res) {
+        if (res.x == 0 || res.y == 0)
+          return;
 
-      renderer->recreateSwapchain(res);
-    });
+        renderer->recreateSwapchain(res);
+      },
+  });
 
   renderer.reset(new Renderer(initialRes));
 
