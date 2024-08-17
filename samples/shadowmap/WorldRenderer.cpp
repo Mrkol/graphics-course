@@ -16,7 +16,7 @@ void WorldRenderer::allocateResources(glm::uvec2 swapchain_resolution)
 {
   resolution = swapchain_resolution;
 
-  auto &ctx = etna::get_context();
+  auto& ctx = etna::get_context();
 
   mainViewDepth = ctx.createImage(etna::Image::CreateInfo{
     .extent = vk::Extent3D{resolution.x, resolution.y, 1},
@@ -254,9 +254,7 @@ void WorldRenderer::drawGui()
 
   float color[3]{uniformParams.baseColor.r, uniformParams.baseColor.g, uniformParams.baseColor.b};
   ImGui::ColorEdit3(
-    "Meshes base color",
-    color,
-    ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs);
+    "Meshes base color", color, ImGuiColorEditFlags_PickerHueWheel | ImGuiColorEditFlags_NoInputs);
   uniformParams.baseColor = {color[0], color[1], color[2]};
 
   float pos[3]{uniformParams.lightPos.x, uniformParams.lightPos.y, uniformParams.lightPos.z};

@@ -44,7 +44,7 @@ void Renderer::initVulkan(std::span<const char*> instance_extensions)
 
 void Renderer::initFrameDelivery(vk::UniqueSurfaceKHR a_surface, ResolutionProvider res_provider)
 {
-  auto &ctx = etna::get_context();
+  auto& ctx = etna::get_context();
 
   resolutionProvider = std::move(res_provider);
   commandManager = ctx.createPerFrameCmdMgr();
@@ -70,7 +70,7 @@ void Renderer::initFrameDelivery(vk::UniqueSurfaceKHR a_surface, ResolutionProvi
 
 void Renderer::recreateSwapchain(glm::uvec2 res)
 {
-  auto &ctx = etna::get_context();
+  auto& ctx = etna::get_context();
 
   ETNA_CHECK_VK_RESULT(ctx.getDevice().waitIdle());
 
