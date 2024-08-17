@@ -26,15 +26,8 @@ public:
 
   double getTime();
 
-  /**
-   * Creates a new OS-native window.
-   * NOTE: you MUST use refreshCb to re-draw your frame to get
-   * cross-platform window resizing behavior.
-   * NOTE: you MUST use resizeCb to recreate your swapchain to get
-   * cross-platform window resizing behavior.
-   */
-  std::unique_ptr<OsWindow> createWindow(
-    glm::uvec2 resolution, OsWindowRefreshCb refresh_cb, OsWindowResizeCb resize_cb);
+  // Creates a new OS-native window. See OsWindow::CreateInfo.
+  std::unique_ptr<OsWindow> createWindow(OsWindow::CreateInfo info);
 
   std::span<const char*> getRequiredVulkanInstanceExtensions();
 

@@ -68,14 +68,17 @@ double OsWindowingManager::getTime()
   return glfwGetTime();
 }
 
-std::unique_ptr<OsWindow> OsWindowingManager::createWindow(
-  glm::uvec2 resolution, OsWindowRefreshCb refresh_cb, OsWindowResizeCb resize_cb)
+std::unique_ptr<OsWindow> OsWindowingManager::createWindow(OsWindow::CreateInfo info)
 {
   glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-  glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
+  glfwWindowHint(GLFW_RESIZABLE, info.resizeable ? GLFW_TRUE : GLFW_FALSE);
 
   auto glfwWindow = glfwCreateWindow(
-    static_cast<int>(resolution.x), static_cast<int>(resolution.y), "Sample", nullptr, nullptr);
+    static_cast<int>(info.resolution.x),
+    static_cast<int>(info.resolution.y),
+    "Sample",
+    nullptr,
+    nullptr);
 
   glfwSetScrollCallback(glfwWindow, &onMouseScrollCb);
   glfwSetWindowCloseCallback(glfwWindow, &onWindowClosedCb);
@@ -85,8 +88,8 @@ std::unique_ptr<OsWindow> OsWindowingManager::createWindow(
   auto result = std::unique_ptr<OsWindow>{new OsWindow};
   result->owner = this;
   result->impl = glfwWindow;
-  result->onRefresh = std::move(refresh_cb);
-  result->onResize = std::move(resize_cb);
+  result->onRefresh = std::move(info.refreshCb);
+  result->onResize = std::move(info.resizeCb);
 
   windows.emplace(glfwWindow, result.get());
   return result;

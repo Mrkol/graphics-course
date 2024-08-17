@@ -26,6 +26,23 @@ class OsWindow
   OsWindow() {}
 
 public:
+  struct CreateInfo
+  {
+    glm::uvec2 resolution;
+
+    // If you mark this as true, you MUST use both refreshCb and resizeCb
+    // for resizing to properly work on all platforms.
+    bool resizeable = false;
+
+    // Use this to redraw your application frame while the
+    // window is being resized.
+    OsWindowRefreshCb refreshCb = {};
+
+    // Use this to save the new resolution and recreate various
+    // resolution-dependent resources while the window is being resized.
+    OsWindowResizeCb resizeCb = {};
+  };
+
   OsWindow(const OsWindow&) = delete;
   OsWindow& operator=(const OsWindow&) = delete;
 
