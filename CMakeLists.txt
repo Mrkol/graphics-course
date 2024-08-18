@@ -46,3 +46,4 @@ add_compile_definitions(
 
 add_subdirectory(common)
 add_subdirectory(samples)
+add_subdirectory(tasks)
