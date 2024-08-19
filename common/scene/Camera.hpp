@@ -8,7 +8,7 @@ struct Camera
 {
   glm::vec3 position;
   glm::quat rotation;
-  float fov{45};
+  float fov{60};
   float zNear{0.01f};
   float zFar{1000};
 
@@ -40,5 +40,5 @@ struct Camera
 
   glm::mat4x4 viewTm() const { return inverse(viewItm()); }
 
-  glm::mat4x4 projTm(float aspect) const { return glm::perspectiveLH_ZO(fov, aspect, zNear, zFar); }
+  glm::mat4x4 projTm(float aspect) const { return glm::perspectiveLH_ZO(-glm::radians(fov), aspect, zNear, zFar); }
 };
