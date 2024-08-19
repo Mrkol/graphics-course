@@ -15,6 +15,8 @@ include("cmake/get_cpm.cmake")
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # NOTE: uncomment to run with ASAN (works even on windows!)
 # Also note that I couldn't figure out how to make ASAN work on windows with clang & ldd.
 if(false)
