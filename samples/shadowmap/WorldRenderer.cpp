@@ -123,33 +123,24 @@ void WorldRenderer::debugInput(const Keyboard& kb)
 void WorldRenderer::update(const FramePacket& packet)
 {
   // calc camera matrix
-
-  // TODO: coordinate systems are all over the place in the sample, investigate and fix properly
-  glm::mat4x4 mFlipY = glm::identity<glm::mat4x4>();
-  mFlipY[1][1] = -1;
-
-  glm::mat4x4 mFlipX = glm::identity<glm::mat4x4>();
-  mFlipX[0][0] = -1;
-
   {
     const float aspect = float(resolution.x) / float(resolution.y);
-    worldViewProj = mFlipY * mFlipX * packet.mainCam.projTm(aspect) * packet.mainCam.viewTm();
+    worldViewProj = packet.mainCam.projTm(aspect) * packet.mainCam.viewTm();
   }
 
   // calc light matrix
-
   {
     const auto mProj = lightProps.usePerspectiveM
-      ? glm::perspectiveLH_ZO(packet.shadowCam.fov, 1.0f, 1.0f, lightProps.lightTargetDist * 2.0f)
+      ? glm::perspectiveLH_ZO(-glm::radians(packet.shadowCam.fov), 1.0f, 1.0f, lightProps.lightTargetDist * 2.0f)
       : glm::orthoLH_ZO(
-          -lightProps.radius,
           +lightProps.radius,
           -lightProps.radius,
           +lightProps.radius,
+          -lightProps.radius,
           0.0f,
           lightProps.lightTargetDist);
 
-    lightMatrix = mFlipX * mProj * packet.shadowCam.viewTm();
+    lightMatrix = mProj * packet.shadowCam.viewTm();
 
     lightPos = packet.shadowCam.position;
   }
