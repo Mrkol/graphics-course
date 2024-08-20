@@ -129,7 +129,7 @@ void App::rotateCam(Camera& cam, const Mouse& ms, float /*dt*/)
   // TODO: should dt be accounted for here?
 
   // Rotate camera based on mouse movement
-  cam.rotate(camRotateSpeed * ms.posDelta.y, camRotateSpeed * ms.posDelta.x);
+  cam.rotate(camRotateSpeed * ms.capturedPosDelta.y, camRotateSpeed * ms.capturedPosDelta.x);
 
   // Increase or decrease field of view based on mouse wheel
   cam.fov -= zoomSensitivity * ms.scrollDelta.y;
