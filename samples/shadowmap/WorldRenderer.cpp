@@ -3,6 +3,7 @@
 #include <etna/GlobalContext.hpp>
 #include <etna/PipelineManager.hpp>
 #include <etna/RenderTargetStates.hpp>
+#include <etna/Profiling.hpp>
 #include <glm/ext.hpp>
 #include <imgui.h>
 
@@ -122,6 +123,8 @@ void WorldRenderer::debugInput(const Keyboard& kb)
 
 void WorldRenderer::update(const FramePacket& packet)
 {
+  ZoneScoped;
+
   // calc camera matrix
   {
     const float aspect = float(resolution.x) / float(resolution.y);
@@ -193,9 +196,13 @@ void WorldRenderer::renderScene(
 void WorldRenderer::renderWorld(
   vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view)
 {
+  ETNA_PROFILE_GPU(cmd_buf, renderWorld);
+
   // draw scene to shadowmap
 
   {
+    ETNA_PROFILE_GPU(cmd_buf, renderShadowMap);
+
     etna::RenderTargetState renderTargets(
       cmd_buf,
       {{0, 0}, {2048, 2048}},
@@ -209,6 +216,8 @@ void WorldRenderer::renderWorld(
   // draw final scene to screen
 
   {
+    ETNA_PROFILE_GPU(cmd_buf, renderForward);
+
     auto simpleMaterialInfo = etna::get_shader_program("simple_material");
 
     auto set = etna::create_descriptor_set(
