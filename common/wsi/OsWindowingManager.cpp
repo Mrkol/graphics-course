@@ -165,7 +165,7 @@ void OsWindowingManager::updateWindow(OsWindow& window)
       glfwGetCursorPos(window.impl, &x, &y);
       glfwSetCursorPos(window.impl, 0, 0);
 
-      window.mouse.posDelta = {x, y};
+      window.mouse.capturedPosDelta = {x, y};
     }
     else
     {
@@ -173,10 +173,18 @@ void OsWindowingManager::updateWindow(OsWindow& window)
       glfwSetCursorPos(window.impl, 0, 0);
       window.mouseWasCaptured = true;
     }
+
+    window.mouse.freePos = {0, 0};
   }
   else
   {
     glfwSetInputMode(window.impl, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
     window.mouseWasCaptured = false;
+
+    double x;
+    double y;
+    glfwGetCursorPos(window.impl, &x, &y);
+    window.mouse.freePos = {x, y};
+    window.mouse.capturedPosDelta = {0, 0};
   }
 }
