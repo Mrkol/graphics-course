@@ -4,6 +4,7 @@
 #include <backends/imgui_impl_glfw.h>
 #include <etna/GlobalContext.hpp>
 #include <etna/RenderTargetStates.hpp>
+#include <etna/Profiling.hpp>
 
 
 void ImGuiRenderer::enableImGuiForWindow(GLFWwindow* window)
@@ -115,6 +116,8 @@ void ImGuiRenderer::render(
   vk::ImageView image_view,
   ImDrawData* im_draw_data)
 {
+  ETNA_PROFILE_GPU(cmd_buf, renderGui)
+
   etna::RenderTargetState renderTargets(
     cmd_buf,
     rect,

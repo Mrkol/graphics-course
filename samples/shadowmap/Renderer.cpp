@@ -4,6 +4,7 @@
 #include <etna/Etna.hpp>
 #include <etna/RenderTargetStates.hpp>
 #include <etna/PipelineManager.hpp>
+#include <etna/Profiling.hpp>
 #include <imgui.h>
 
 #include <gui/ImGuiRenderer.hpp>
@@ -112,7 +113,10 @@ void Renderer::update(const FramePacket& packet)
 
 void Renderer::drawFrame()
 {
+  ZoneScoped;
+
   {
+    ZoneScopedN("drawGui");
     guiRenderer->nextFrame();
     ImGui::NewFrame();
     worldRenderer->drawGui();
@@ -136,25 +140,29 @@ void Renderer::drawFrame()
     auto [image, view, availableSem] = *nextSwapchainImage;
 
     ETNA_CHECK_VK_RESULT(currentCmdBuf.begin(vk::CommandBufferBeginInfo{}));
-
-    worldRenderer->renderWorld(currentCmdBuf, image, view);
-
     {
-      ImDrawData* pDrawData = ImGui::GetDrawData();
-      guiRenderer->render(
-        currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, image, view, pDrawData);
+      ETNA_PROFILE_GPU(currentCmdBuf, renderFrame);
+
+      worldRenderer->renderWorld(currentCmdBuf, image, view);
+
+      {
+        ImDrawData* pDrawData = ImGui::GetDrawData();
+        guiRenderer->render(
+          currentCmdBuf, {{0, 0}, {resolution.x, resolution.y}}, image, view, pDrawData);
+      }
+
+      etna::set_state(
+        currentCmdBuf,
+        image,
+        vk::PipelineStageFlagBits2::eBottomOfPipe,
+        {},
+        vk::ImageLayout::ePresentSrcKHR,
+        vk::ImageAspectFlagBits::eColor);
+
+      etna::flush_barriers(currentCmdBuf);
+
+      ETNA_READ_BACK_GPU_PROFILING(currentCmdBuf);
     }
-
-    etna::set_state(
-      currentCmdBuf,
-      image,
-      vk::PipelineStageFlagBits2::eBottomOfPipe,
-      {},
-      vk::ImageLayout::ePresentSrcKHR,
-      vk::ImageAspectFlagBits::eColor);
-
-    etna::flush_barriers(currentCmdBuf);
-
     ETNA_CHECK_VK_RESULT(currentCmdBuf.end());
 
     auto renderingDone = commandManager->submit(std::move(currentCmdBuf), std::move(availableSem));

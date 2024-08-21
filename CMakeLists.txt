@@ -27,7 +27,7 @@ if(false)
 endif()
 
 # Uncomment to contribute to etna
-# set(CPM_etna_SOURCE "../../etna")
+set(CPM_etna_SOURCE "../../etna")
 
 include("cmake/thirdparty.cmake")
 include("cmake/shaders.cmake")

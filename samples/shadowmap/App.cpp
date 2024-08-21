@@ -1,5 +1,7 @@
 #include "App.hpp"
 
+#include <tracy/Tracy.hpp>
+
 #include "gui/ImGuiRenderer.hpp"
 
 
@@ -13,6 +15,7 @@ App::App()
       [this]() {
         // NOTE: this is only called when the window is being resized.
         drawFrame();
+        FrameMark;
       },
     .resizeCb =
       [this](glm::uvec2 res) {
@@ -57,11 +60,15 @@ void App::run()
     processInput(diffTime);
 
     drawFrame();
+
+    FrameMark;
   }
 }
 
 void App::processInput(float dt)
 {
+  ZoneScoped;
+
   if (mainWindow->keyboard[KeyboardKey::kEscape] == ButtonState::Falling)
     mainWindow->askToClose();
 
@@ -87,6 +94,8 @@ void App::processInput(float dt)
 
 void App::drawFrame()
 {
+  ZoneScoped;
+
   renderer->update(FramePacket{
     .mainCam = mainCam,
     .shadowCam = shadowCam,

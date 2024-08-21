@@ -3,6 +3,8 @@
 #include <GLFW/glfw3.h>
 #include <etna/Assert.hpp>
 
+#include <tracy/Tracy.hpp>
+
 
 static OsWindowingManager* instance = nullptr;
 
@@ -54,6 +56,8 @@ OsWindowingManager::~OsWindowingManager()
 
 void OsWindowingManager::poll()
 {
+  ZoneScoped;
+
   for (auto [_, window] : windows)
     window->mouse.scrollDelta = {0, 0};
 
