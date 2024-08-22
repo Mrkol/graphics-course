@@ -1,7 +1,9 @@
 bin
+out
 build
 external
 .vs
 .cache
 .vscode
 CMakeSettings.json
+CMakeUserPresets.json
