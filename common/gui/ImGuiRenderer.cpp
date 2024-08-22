@@ -70,7 +70,7 @@ void ImGuiRenderer::initImGui(vk::Format a_target_format)
     .Device = ctx.getDevice(),
     .QueueFamily = ctx.getQueueFamilyIdx(),
     .Queue = ctx.getQueue(),
-    .DescriptorPool = descriptorPool.get(),
+    .DescriptorPool = static_cast<VkDescriptorPool>(descriptorPool.get()),
     .RenderPass = VK_NULL_HANDLE,
     // This is basically unused
     .MinImageCount = 2,
