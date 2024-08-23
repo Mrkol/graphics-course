@@ -12,11 +12,10 @@ endif()
 
 include("cmake/get_cpm.cmake")
 
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED True)
-
 # NOTE: uncomment to run with ASAN (works even on windows!)
 # Also note that I couldn't figure out how to make ASAN work on windows with clang & ldd.
+# We intentially set this stuff here, as it must apply globally, to all targets,
+# including our dependencies
 if(false)
   if (MSVC)
     add_compile_options("/fsanitize=address")
@@ -31,18 +30,6 @@ set(CPM_etna_SOURCE "${PROJECT_SOURCE_DIR}/../etna")
 
 include("cmake/thirdparty.cmake")
 include("cmake/shaders.cmake")
-
-
-if(MSVC)
-  add_compile_options(/W3)
-else()
-  add_compile_options(-Wall -Wextra)
-endif()
-
-add_compile_definitions(
-  GRAPHICS_COURSE_RESOURCES_ROOT="${PROJECT_SOURCE_DIR}/resources"
-  GRAPHICS_COURSE_ROOT="${PROJECT_SOURCE_DIR}"
-)
 
 add_subdirectory(common)
 add_subdirectory(samples)
