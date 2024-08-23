@@ -57,10 +57,10 @@ SceneManager::ProcessedInstances SceneManager::processInstances(const tinygltf::
 {
   std::vector nodeTransforms(model.nodes.size(), glm::identity<glm::mat4x4>());
 
-  for (std::size_t i = 0; i < model.nodes.size(); ++i)
+  for (std::size_t nodeIdx = 0; nodeIdx < model.nodes.size(); ++nodeIdx)
   {
-    const auto& node = model.nodes[i];
-    auto& transform = nodeTransforms[i];
+    const auto& node = model.nodes[nodeIdx];
+    auto& transform = nodeTransforms[nodeIdx];
 
     if (!node.matrix.empty())
     {
