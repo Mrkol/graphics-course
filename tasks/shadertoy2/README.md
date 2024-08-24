@@ -1,10 +1,10 @@
-# Shadertoy-2
+# Shadertoy 2
 
-В данном задании мы продолжим развлекаться, улучшив шейдер из задания [shadertoy-1](/tasks/shadertoy1/).
+В данном задании мы продолжим развлекаться, улучшив шейдер из задания [shadertoy 1](/tasks/shadertoy1/).
 
 ## Перед началом
 
- 1. Создайте **новый** шейдер на [shadertoy](https://www.shadertoy.com/) и скопируйте в него код из задания [shadertoy-1](/tasks/shadertoy1/).
+ 1. Создайте **новый** шейдер на [shadertoy](https://www.shadertoy.com/) и скопируйте в него код из задания [shadertoy 1](/tasks/shadertoy1/).
  2. Вспомните материал лекции про работу с текстурами.
 
 ## Задание
