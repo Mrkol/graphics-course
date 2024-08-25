@@ -46,6 +46,8 @@
 
 ## Бонусный уровень
 
+Бонус просьба делать в **отдельном комите**, чтобы была возможность его откатить.
+
 Используя [KHR_mesh_quantization](https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md), "упихайте" модель в 16 байт на вершину.
 Для этого вам придётся в том числе поменять код семпла.
 
