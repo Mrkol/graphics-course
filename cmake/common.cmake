@@ -3,14 +3,17 @@
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
-if(MSVC)
+if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC") # cl and clang-cl
   add_compile_options(/W4 /WX
     # Selectively disable some insane warnings
     /wd4061 /wd4514
     # Enforce standards-compliance in MSVC
-    /permissive- /volatile:iso /Zc:inline /Zc:wchar_t /EHsc /Zc:preprocessor /Zc:__cplusplus
+    /permissive- /volatile:iso /Zc:inline /Zc:wchar_t /EHsc /Zc:__cplusplus
   )
-else()
+  if (CMAKE_CXX_COMPILER_ID MATCHES "MSVC") # cl only
+    add_compile_options(/Zc:preprocessor)
+  endif()
+elseif(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU") # gcc and clang
   add_compile_options(-Wall -Wextra -Werror -pedantic)
 endif()
 
