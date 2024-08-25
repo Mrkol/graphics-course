@@ -41,8 +41,10 @@ void Renderer::initVulkan(std::span<const char*> instance_extensions)
   });
 }
 
-void Renderer::initFrameDelivery(vk::UniqueSurfaceKHR a_surface)
+void Renderer::initFrameDelivery(vk::UniqueSurfaceKHR a_surface, ResolutionProvider res_provider)
 {
+  resolutionProvider = std::move(res_provider);
+
   auto& ctx = etna::get_context();
 
   commandManager = ctx.createPerFrameCmdMgr();
@@ -128,6 +130,15 @@ void Renderer::drawFrame()
 
     if (!presented)
       nextSwapchainImage = std::nullopt;
+  }
+
+  if (!nextSwapchainImage && resolutionProvider() != glm::uvec2{0, 0})
+  {
+    auto [w, h] = window->recreateSwapchain(etna::Window::DesiredProperties{
+      .resolution = {resolution.x, resolution.y},
+      .vsync = useVsync,
+    });
+    ETNA_ASSERT((resolution == glm::uvec2{w, h}));
   }
 
   etna::end_frame();

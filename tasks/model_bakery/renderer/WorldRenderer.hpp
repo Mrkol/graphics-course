@@ -12,10 +12,6 @@
 #include "FramePacket.hpp"
 
 
-/**
- * The meat of the sample. All things you see on the screen are contained within this class.
- * This what you want to change and expand between different samples.
- */
 class WorldRenderer
 {
 public:

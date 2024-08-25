@@ -12,6 +12,7 @@ class App
 {
 public:
   App();
+  ~App();
 
   void run();
 
@@ -23,6 +24,7 @@ private:
   std::unique_ptr<OsWindow> osWindow;
 
   glm::uvec2 resolution;
+  bool useVsync;
 
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;

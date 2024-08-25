@@ -6,6 +6,8 @@
 
 
 App::App()
+  : resolution{1280, 720}
+  , useVsync{true}
 {
   // First, we need to initialize Vulkan, which is not trivial because
   // extensions are required for just about anything.
@@ -43,7 +45,6 @@ App::App()
   }
 
   // Now we can create an OS window
-  resolution = {1280, 720};
   osWindow = windowing.createWindow(OsWindow::CreateInfo{
     .resolution = resolution,
   });
@@ -64,7 +65,7 @@ App::App()
     // Here, we do not support window resizing, so we only need to call this once.
     auto [w, h] = vkWindow->recreateSwapchain(etna::Window::DesiredProperties{
       .resolution = {resolution.x, resolution.y},
-      .vsync = true,
+      .vsync = useVsync,
     });
 
     // Technically, Vulkan might fail to initialize a swapchain with the requested
@@ -79,6 +80,11 @@ App::App()
 
 
   // TODO: Initialize any additional resources you require here!
+}
+
+App::~App()
+{
+  ETNA_CHECK_VK_RESULT(etna::get_context().getDevice().waitIdle());
 }
 
 void App::run()
@@ -106,8 +112,8 @@ void App::drawFrame()
   // And now get the image we should be rendering the picture into.
   auto nextSwapchainImage = vkWindow->acquireNext();
 
-  // When window is minimized, we can't render anything in Windows, so we
-  // skip frames in this case.
+  // When window is minimized, we can't render anything in Windows
+  // because it kills the swapchain, so we skip frames in this case.
   if (nextSwapchainImage)
   {
     auto [backbuffer, backbufferView, backbufferAvailableSem] = *nextSwapchainImage;
@@ -144,8 +150,21 @@ void App::drawFrame()
 
     // Finally, present the backbuffer the screen, but only after the GPU tells the OS
     // that it is done executing the command buffer via the renderingDone semaphore.
-    vkWindow->present(std::move(renderingDone), backbufferView);
+    const bool presented = vkWindow->present(std::move(renderingDone), backbufferView);
+
+    if (!presented)
+      nextSwapchainImage = std::nullopt;
   }
 
   etna::end_frame();
+
+  // After a window us un-minimized, we need to restore the swapchain to continue rendering.
+  if (!nextSwapchainImage && osWindow->getResolution() != glm::uvec2{0, 0})
+  {
+    auto [w, h] = vkWindow->recreateSwapchain(etna::Window::DesiredProperties{
+      .resolution = {resolution.x, resolution.y},
+      .vsync = useVsync,
+    });
+    ETNA_ASSERT((resolution == glm::uvec2{w, h}));
+  }
 }
