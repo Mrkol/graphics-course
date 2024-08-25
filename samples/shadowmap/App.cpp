@@ -135,8 +135,6 @@ void App::moveCam(Camera& cam, const Keyboard& kb, float dt)
 
 void App::rotateCam(Camera& cam, const Mouse& ms, float /*dt*/)
 {
-  // TODO: should dt be accounted for here?
-
   // Rotate camera based on mouse movement
   cam.rotate(camRotateSpeed * ms.capturedPosDelta.y, camRotateSpeed * ms.capturedPosDelta.x);
 
@@ -144,6 +142,6 @@ void App::rotateCam(Camera& cam, const Mouse& ms, float /*dt*/)
   cam.fov -= zoomSensitivity * ms.scrollDelta.y;
   if (cam.fov < 1.0f)
     cam.fov = 1.0f;
-  if (cam.fov > 180.0f)
-    cam.fov = 180.0f;
+  if (cam.fov > 120.0f)
+    cam.fov = 120.0f;
 }

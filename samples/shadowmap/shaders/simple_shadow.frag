@@ -38,11 +38,11 @@ void main()
   const vec4 dark_violet = vec4(0.59f, 0.0f, 0.82f, 1.0f);
   const vec4 chartreuse  = vec4(0.5f, 1.0f, 0.0f, 1.0f);
 
-  vec4 lightColor1 = mix(dark_violet, chartreuse, abs(sin(params.time)));
-  vec4 lightColor2 = vec4(1.0f, 1.0f, 1.0f, 1.0f);
+  const vec4 lightColor1 = mix(dark_violet, chartreuse, abs(sin(params.time)));
+  const vec4 lightColor2 = vec4(1.0f, 1.0f, 1.0f, 1.0f);
 
-  vec3 lightDir   = normalize(params.lightPos - surf.wPos);
-  vec4 lightColor = max(dot(surf.wNorm, lightDir), 0.0f) * lightColor1;
+  const vec3 lightDir   = normalize(params.lightPos - surf.wPos);
+  const vec4 lightColor = max(dot(surf.wNorm, lightDir), 0.0f) * lightColor1;
   const float ambient = 0.05;
   // Light formula is pretty arbitrary and most definitely wrong
   out_fragColor = (lightColor * shadow + ambient) * vec4(params.baseColor, 1.0f);
