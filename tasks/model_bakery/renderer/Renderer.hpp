@@ -11,6 +11,8 @@
 #include "WorldRenderer.hpp"
 
 
+using ResolutionProvider = fu2::unique_function<glm::uvec2() const>;
+
 class Renderer
 {
 public:
@@ -18,7 +20,7 @@ public:
   ~Renderer();
 
   void initVulkan(std::span<const char*> instance_extensions);
-  void initFrameDelivery(vk::UniqueSurfaceKHR surface);
+  void initFrameDelivery(vk::UniqueSurfaceKHR surface, ResolutionProvider res_provider);
   void recreateSwapchain(glm::uvec2 res);
   void loadScene(std::filesystem::path path);
 
@@ -27,6 +29,8 @@ public:
   void drawFrame();
 
 private:
+  ResolutionProvider resolutionProvider;
+
   std::unique_ptr<etna::Window> window;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
 
