@@ -30,7 +30,7 @@ private:
 
   float camMoveSpeed = 1;
   float camRotateSpeed = 0.1f;
-  float zoomSensitivity = 0.2f;
+  float zoomSensitivity = 2.0f;
   Camera mainCam;
   Camera shadowCam;
 
