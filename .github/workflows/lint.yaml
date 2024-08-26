@@ -20,7 +20,6 @@ jobs:
     - uses: jidicula/clang-format-action@v4.11.0
       with:
         clang-format-version: '17'
-        check-path: 'etna'
         fallback-style: 'none'
 
     - uses: ZedThree/clang-tidy-review@v0.14.0 # v0.17 is buggy
