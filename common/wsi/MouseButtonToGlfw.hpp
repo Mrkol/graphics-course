@@ -13,5 +13,4 @@
   X(mbLast, GLFW_MOUSE_BUTTON_LAST)                                                                \
   X(mbLeft, GLFW_MOUSE_BUTTON_LEFT)                                                                \
   X(mbRight, GLFW_MOUSE_BUTTON_RIGHT)                                                              \
-  X(mbMiddle, GLFW_MOUSE_BUTTON_MIDDLE)\
-
+  X(mbMiddle, GLFW_MOUSE_BUTTON_MIDDLE)

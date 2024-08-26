@@ -2,12 +2,10 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : require
 
-#include "UniformParams.h"
-
 
 layout(location = 0) out vec4 out_fragColor;
 
-layout (location = 0 ) in VS_OUT
+layout(location = 0) in VS_OUT
 {
   vec3 wPos;
   vec3 wNorm;

@@ -10,5 +10,5 @@ enum class KeyboardKey
   ALL_KEYBOARD_KEYS
 #undef X
 
-  COUNT,
+    COUNT,
 };

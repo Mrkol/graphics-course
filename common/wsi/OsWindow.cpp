@@ -36,5 +36,6 @@ vk::UniqueSurfaceKHR OsWindow::createVkSurface(vk::Instance instance)
   ETNA_CHECK_VK_RESULT(static_cast<vk::Result>(cres));
 
   return vk::UniqueSurfaceKHR{
-    vk::SurfaceKHR{surface}, vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>{instance}};
+    vk::SurfaceKHR{surface},
+    vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>{instance}};
 }

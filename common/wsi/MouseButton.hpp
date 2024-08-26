@@ -9,5 +9,5 @@ enum class MouseButton
   ALL_MOUSE_BUTTONS
 #undef X
 
-  COUNT,
+    COUNT,
 };

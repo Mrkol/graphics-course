@@ -12,7 +12,7 @@ SimpleCompute::SimpleCompute()
 
 void SimpleCompute::setup()
 {
-  etna::create_program("simple_compute", { SIMPLE_COMPUTE_SHADERS_ROOT "simple.comp.spv"});
+  etna::create_program("simple_compute", {SIMPLE_COMPUTE_SHADERS_ROOT "simple.comp.spv"});
 
   // Buffer creation
 
