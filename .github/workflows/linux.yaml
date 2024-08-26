@@ -39,7 +39,7 @@ jobs:
       run: |
         sudo apt update
         ${{matrix.install}}
-        sudo apt install libxkbcommon-dev libwayland-bin
+        sudo apt install libwayland-dev libxkbcommon-dev xorg-dev
         cmake -E make_directory ${{runner.workspace}}/build
 
     - name: Set up CPM cache
