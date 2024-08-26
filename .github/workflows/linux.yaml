@@ -40,7 +40,7 @@ jobs:
       run: |
         sudo apt update
         ${{matrix.install}}
-        sudo apt install locales-all
+        sudo apt install xkbcommon
         cmake -E make_directory ${{runner.workspace}}/build
 
     - name: Configure
