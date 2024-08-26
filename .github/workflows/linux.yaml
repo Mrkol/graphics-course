@@ -1,0 +1,59 @@
+name: linux
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+# mostly stolen from
+# https://github.com/fmtlib/fmt
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        cxx: [g++-12, clang++-15]
+        build_type: [Debug, Release]
+        include:
+          - cxx: g++-12
+            install: sudo apt install g++-12
+          - cxx: clang++-15
+            cxxflags: -stdlib=libc++
+            install: sudo apt install clang-15 libc++-15-dev libc++abi-15-dev
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Prepare Vulkan SDK
+      uses: humbletim/setup-vulkan-sdk@v1.2.0
+      with:
+        vulkan-query-version: 1.3.290.0
+        vulkan-components: Vulkan-Headers, Vulkan-Loader
+        vulkan-use-cache: true
+
+    - name: Install CMake
+      uses: ssrobins/install-cmake@v1
+      with:
+        version: 3.30.2
+
+    - name: Create Build Environment
+      run: |
+        sudo apt update
+        ${{matrix.install}}
+        sudo apt install locales-all
+        cmake -E make_directory ${{runner.workspace}}/build
+
+    - name: Configure
+      working-directory: ${{runner.workspace}}/build
+      env:
+        CXX: ${{matrix.cxx}}
+        CXXFLAGS: ${{matrix.cxxflags}}
+      run: |
+        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+              $GITHUB_WORKSPACE
+
+    - name: Build
+      working-directory: ${{runner.workspace}}/build
+      run: |
+        threads=`nproc`
+        cmake --build . --config ${{matrix.build_type}} --parallel $threads

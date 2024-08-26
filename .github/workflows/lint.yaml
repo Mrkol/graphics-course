@@ -1,0 +1,46 @@
+name: lint
+
+on:
+  pull_request:
+    paths:
+      - '**.hpp'
+      - '**.cpp'
+      - '**.clang-format'
+      - '**.clang-tidy'
+
+permissions:
+  contents: read
+
+jobs:
+  check-format-and-tidy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - uses: jidicula/clang-format-action@v4.11.0
+      with:
+        clang-format-version: '17'
+        check-path: 'etna'
+        fallback-style: 'none'
+
+    - uses: ZedThree/clang-tidy-review@v0.14.0 # v0.17 is buggy
+      id: review
+      with:
+        apt_packages: 'wget,libx11-dev'
+        build_dir: build
+        cmake_command: | # Awful, dirty hacks to get the vulkan-sdk and cmake version we need
+          wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | \
+            tee /etc/apt/trusted.gpg.d/lunarg.asc && \
+          wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.3.290-jammy.list \
+            https://packages.lunarg.com/vulkan/1.3.290/lunarg-vulkan-1.3.290-jammy.list && \
+          echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main'\
+            | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
+          apt update && \
+          apt-get -y install libvulkan-dev vulkan-headers cmake && \
+          cmake -Bbuild -S. -DCMAKE_EXPORT_COMPILE_COMMANDS=on
+        clang_tidy_checks: '' # Use closest .clang-tidy config, not some weird default
+        split_workflow: true # So that comments work with fork PRs
+
+    # Upload review results as artifacts, a different workflow posts them
+    # as comments. This is required due to security stuff.
+    - uses: ZedThree/clang-tidy-review/upload@v0.14.0 # v0.17 is buggy
