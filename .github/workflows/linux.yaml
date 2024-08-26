@@ -42,14 +42,24 @@ jobs:
         sudo apt install libxkbcommon-dev libwayland-bin
         cmake -E make_directory ${{runner.workspace}}/build
 
+    - name: Set up CPM cache
+      id: cache-cpm
+      uses: actions/cache@v2
+      with:
+        path: ~/cpm-cache
+        key: ${{ runner.os }}-cpm-${{ hashFiles('**/') }}
+        restore-keys: |
+          ${{ runner.os }}-cpm-
+
     - name: Configure
       working-directory: ${{runner.workspace}}/build
       env:
         CXX: ${{matrix.cxx}}
         CXXFLAGS: ${{matrix.cxxflags}}
       run: |
-        cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
-              $GITHUB_WORKSPACE
+        cmake -DCPM_SOURCE_CACHE=~/cpm-cache \
+          -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+          $GITHUB_WORKSPACE
 
     - name: Build
       working-directory: ${{runner.workspace}}/build
