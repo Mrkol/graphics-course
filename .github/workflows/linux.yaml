@@ -39,7 +39,7 @@ jobs:
       run: |
         sudo apt update
         ${{matrix.install}}
-        sudo apt install libxkbcommon-dev
+        sudo apt install libxkbcommon-dev libwayland-bin
         cmake -E make_directory ${{runner.workspace}}/build
 
     - name: Configure
