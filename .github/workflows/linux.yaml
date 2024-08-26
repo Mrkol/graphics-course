@@ -40,7 +40,7 @@ jobs:
       run: |
         sudo apt update
         ${{matrix.install}}
-        sudo apt install xkbcommon
+        sudo apt install libxkbcommon-dev
         cmake -E make_directory ${{runner.workspace}}/build
 
     - name: Configure
