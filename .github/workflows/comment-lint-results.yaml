@@ -1,0 +1,22 @@
+name: comment-lint-results
+
+permissions:
+  checks: write
+  pull-requests: write
+
+on:
+  workflow_run:
+    workflows: ["lint"]
+    types:
+      - completed
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: ZedThree/clang-tidy-review/post@v0.14.0 # v0.17 is buggy
+        with:
+          lgtm_comment_body: 'А я всегда говорил, нормально делай — нормально будет! 👍'
+          annotations: false
+          max_comments: 10
