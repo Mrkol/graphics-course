@@ -12,13 +12,18 @@ struct GLFWwindow;
 class ImGuiRenderer
 {
 public:
-  static void enableImGuiForWindow(GLFWwindow *window);
+  static void enableImGuiForWindow(GLFWwindow* window);
 
   explicit ImGuiRenderer(vk::Format target_format);
 
   void nextFrame();
 
-  void render(vk::CommandBuffer cmd_buf, vk::Rect2D rect, vk::Image image, vk::ImageView image_view, ImDrawData *im_draw_data);
+  void render(
+    vk::CommandBuffer cmd_buf,
+    vk::Rect2D rect,
+    vk::Image image,
+    vk::ImageView image_view,
+    ImDrawData* im_draw_data);
 
   ~ImGuiRenderer();
 

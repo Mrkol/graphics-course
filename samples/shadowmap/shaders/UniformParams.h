@@ -6,10 +6,10 @@
 
 struct UniformParams
 {
-  shader_mat4  lightMatrix;
-  shader_vec3  lightPos;
+  shader_mat4 lightMatrix;
+  shader_vec3 lightPos;
   shader_float time;
-  shader_vec3  baseColor;
+  shader_vec3 baseColor;
 };
 
 

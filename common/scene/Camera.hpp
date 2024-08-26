@@ -40,5 +40,8 @@ struct Camera
 
   glm::mat4x4 viewTm() const { return inverse(viewItm()); }
 
-  glm::mat4x4 projTm(float aspect) const { return glm::perspectiveLH_ZO(-glm::radians(fov), aspect, zNear, zFar); }
+  glm::mat4x4 projTm(float aspect) const
+  {
+    return glm::perspectiveLH_ZO(-glm::radians(fov), aspect, zNear, zFar);
+  }
 };

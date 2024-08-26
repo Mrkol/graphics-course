@@ -134,7 +134,8 @@ void WorldRenderer::update(const FramePacket& packet)
   // calc light matrix
   {
     const auto mProj = lightProps.usePerspectiveM
-      ? glm::perspectiveLH_ZO(-glm::radians(packet.shadowCam.fov), 1.0f, 1.0f, lightProps.lightTargetDist * 2.0f)
+      ? glm::perspectiveLH_ZO(
+          -glm::radians(packet.shadowCam.fov), 1.0f, 1.0f, lightProps.lightTargetDist * 2.0f)
       : glm::orthoLH_ZO(
           +lightProps.radius,
           -lightProps.radius,

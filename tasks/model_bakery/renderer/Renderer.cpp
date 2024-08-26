@@ -79,7 +79,7 @@ void Renderer::debugInput(const Keyboard& kb)
   if (kb[KeyboardKey::kB] == ButtonState::Falling)
   {
     std::system("cd " GRAPHICS_COURSE_ROOT "/build"
-                " && cmake --build . --target shadowmap_shaders");
+                " && cmake --build . --target model_bakery_renderer_shaders");
     ETNA_CHECK_VK_RESULT(etna::get_context().getDevice().waitIdle());
     etna::reload_shaders();
   }

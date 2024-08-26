@@ -7,7 +7,7 @@
 
 layout(location = 0) out vec4 out_fragColor;
 
-layout (location = 0 ) in VS_OUT
+layout(location = 0) in VS_OUT
 {
   vec3 wPos;
   vec3 wNorm;
@@ -20,7 +20,7 @@ layout(binding = 0, set = 0) uniform AppData
   UniformParams params;
 };
 
-layout (binding = 1) uniform sampler2D shadowMap;
+layout(binding = 1) uniform sampler2D shadowMap;
 
 void main()
 {

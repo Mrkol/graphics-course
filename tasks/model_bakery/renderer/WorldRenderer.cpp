@@ -36,7 +36,8 @@ void WorldRenderer::loadShaders()
 {
   etna::create_program(
     "static_mesh_material",
-    {MODEL_BAKERY_RENDERER_SHADERS_ROOT "static_mesh.frag.spv", MODEL_BAKERY_RENDERER_SHADERS_ROOT "static_mesh.vert.spv"});
+    {MODEL_BAKERY_RENDERER_SHADERS_ROOT "static_mesh.frag.spv",
+     MODEL_BAKERY_RENDERER_SHADERS_ROOT "static_mesh.vert.spv"});
   etna::create_program("static_mesh", {MODEL_BAKERY_RENDERER_SHADERS_ROOT "static_mesh.vert.spv"});
 }
 
@@ -70,9 +71,7 @@ void WorldRenderer::setupPipelines(vk::Format swapchain_format)
     });
 }
 
-void WorldRenderer::debugInput(const Keyboard&)
-{
-}
+void WorldRenderer::debugInput(const Keyboard&) {}
 
 void WorldRenderer::update(const FramePacket& packet)
 {
@@ -83,8 +82,6 @@ void WorldRenderer::update(const FramePacket& packet)
     const float aspect = float(resolution.x) / float(resolution.y);
     worldViewProj = packet.mainCam.projTm(aspect) * packet.mainCam.viewTm();
   }
-
-
 }
 
 void WorldRenderer::renderScene(
