@@ -5,7 +5,6 @@
 #include <etna/RenderTargetStates.hpp>
 #include <etna/Profiling.hpp>
 #include <glm/ext.hpp>
-#include <imgui.h>
 
 
 WorldRenderer::WorldRenderer()

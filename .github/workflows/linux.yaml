@@ -13,7 +13,7 @@ jobs:
     strategy:
       matrix:
         cxx: [g++-12, clang++-15]
-        build_type: [Debug, Release]
+        build_type: [Debug, RelWithDebInfo, Release]
         include:
           - cxx: g++-12
             install: sudo apt install g++-12
