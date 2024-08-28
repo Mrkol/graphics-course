@@ -5,9 +5,6 @@
 #include <etna/RenderTargetStates.hpp>
 #include <etna/PipelineManager.hpp>
 #include <etna/Profiling.hpp>
-#include <imgui.h>
-
-#include <gui/ImGuiRenderer.hpp>
 
 
 Renderer::Renderer(glm::uvec2 res)
