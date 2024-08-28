@@ -323,7 +323,7 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
       }
 
       // Indices are guaranteed to have no stride
-      ETNA_ASSERT(bufViews[0]->byteStride == 0);
+      ETNA_VERIFY(bufViews[0]->byteStride == 0);
       const std::size_t indexCount = accessors[0]->count;
       if (accessors[0]->componentType == TINYGLTF_COMPONENT_TYPE_UNSIGNED_SHORT)
       {

@@ -166,6 +166,6 @@ void App::drawFrame()
       .resolution = {resolution.x, resolution.y},
       .vsync = useVsync,
     });
-    ETNA_ASSERT((resolution == glm::uvec2{w, h}));
+    ETNA_VERIFY((resolution == glm::uvec2{w, h}));
   }
 }

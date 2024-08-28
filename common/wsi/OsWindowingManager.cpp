@@ -40,16 +40,16 @@ void OsWindowingManager::onWindowSizeCb(GLFWwindow* window, int width, int heigh
 
 OsWindowingManager::OsWindowingManager()
 {
-  ETNA_ASSERT(glfwInit() == GLFW_TRUE);
+  ETNA_VERIFY(glfwInit() == GLFW_TRUE);
 
   glfwSetErrorCallback(&OsWindowingManager::onErrorCb);
 
-  ETNA_ASSERT(std::exchange(instance, this) == nullptr);
+  ETNA_VERIFY(std::exchange(instance, this) == nullptr);
 }
 
 OsWindowingManager::~OsWindowingManager()
 {
-  ETNA_ASSERT(std::exchange(instance, nullptr) == this);
+  ETNA_VERIFY(std::exchange(instance, nullptr) == this);
 
   glfwTerminate();
 }

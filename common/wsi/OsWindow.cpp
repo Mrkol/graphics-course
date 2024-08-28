@@ -25,7 +25,7 @@ glm::uvec2 OsWindow::getResolution()
 {
   glm::ivec2 result;
   glfwGetWindowSize(impl, &result.x, &result.y);
-  ETNA_ASSERT(result.x >= 0 && result.y >= 0);
+  ETNA_VERIFY(result.x >= 0 && result.y >= 0);
   return glm::uvec2(result);
 }
 
