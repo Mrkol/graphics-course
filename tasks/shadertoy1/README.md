@@ -18,6 +18,6 @@
 
 ## Полезные материалы
 
- 1. https://www.khronos.org/opengl/wiki/OpenGL_Shading_Language &mdash; Справочник по языку GLSL
+ 1. https://www.khronos.org/opengl/wiki/OpenGL_Shading_Language &mdash; справочник по языку GLSL
  2. https://iquilezles.org/ &mdash; сайт Иниго Килес со статьями и гайдами по шейдертою
  3. https://steps3d.narod.ru/tutorials/sdf-3d-tutorial.html &mdash; введение в SDF от Борескова Алексея Викторовича
