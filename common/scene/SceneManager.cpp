@@ -174,7 +174,7 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
       }
     }
     result.vertices.reserve(vertexBytes / sizeof(Vertex));
-    result.vertices.reserve(indexBytes / sizeof(std::uint32_t));
+    result.indices.reserve(indexBytes / sizeof(std::uint32_t));
   }
 
   {
