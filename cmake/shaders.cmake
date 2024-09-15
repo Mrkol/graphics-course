@@ -53,11 +53,13 @@ function(target_add_shaders tgt)
           "$<$<BOOL:${incl_dirs}>:-I$<JOIN:${incl_dirs},;-I>>"
           "$<$<CONFIG:Debug>:-g>"
           -V
+	  --depfile ${output_path}.dep
           ${input_path}
           -o ${output_path}
         VERBATIM
         COMMAND_EXPAND_LISTS
-        DEPENDS ${input_path})
+        DEPENDS ${input_path}
+        DEPFILE ${output_path}.dep)
     list(APPEND SPIRV_BINARY_FILES ${output_path})
   endforeach(glsl_path)
 

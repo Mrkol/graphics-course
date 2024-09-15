@@ -53,8 +53,11 @@ CPMAddPackage(
 # etna -- our wrapper around Vulkan to make life easier
 CPMAddPackage(
   NAME etna
-  GITHUB_REPOSITORY AlexandrShcherbakov/etna
+  GITHUB_REPOSITORY Dx18/etna
+  GIT_TAG synchronization2-layer-removal
   VERSION 1.0.0
+  OPTIONS
+    "SPIRV_REFLECT_VERSION_SMART_SEARCH ON"
 )
 
 # Type-erased function containers that actually work

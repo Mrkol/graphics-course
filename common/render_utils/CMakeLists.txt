@@ -1,5 +1,5 @@
-
-add_library(render_utils QuadRenderer.cpp)
+add_library(render_utils
+  LineRenderer.cpp QuadRenderer.cpp)
 
 target_include_directories(render_utils PUBLIC ..)
 
@@ -14,4 +14,6 @@ target_link_libraries(render_utils PUBLIC etna)
 target_add_shaders(render_utils
   shaders/quad.vert
   shaders/quad.frag
+  shaders/plain_color.vert
+  shaders/plain_color.frag
 )
