@@ -20,11 +20,6 @@ App::App()
 
     std::vector<const char*> instanceExtensions{glfwInstExts.begin(), glfwInstExts.end()};
 
-    // But we also want to get detailed debug reports in debug builds
-#ifndef NDEBUG
-    instanceExtensions.push_back("VK_EXT_debug_report");
-#endif
-
     // We also need the swapchain device extension to get access to the OS
     // window from inside of Vulkan on the GPU.
     // Device extensions require HW support from the GPU.
