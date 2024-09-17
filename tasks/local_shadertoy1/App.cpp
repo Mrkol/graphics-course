@@ -115,25 +115,44 @@ void App::drawFrame()
 
     ETNA_CHECK_VK_RESULT(currentCmdBuf.begin(vk::CommandBufferBeginInfo{}));
     {
-      // TODO: Record your commands here!
-
-
-      // At the end of rendering, we are required to change how the pixels of the
-      // swpchain image are laid out in memory to something that is appropriate
-      // for presenting to the window.
-      // Etna does this for you for you in some cases where you use etna::Image,
-      // but definitely not all of them.
+      // First of all, we need to "initialize" th "backbuffer", aka the current swapchain
+      // image, into a state that is appropriate for us working with it. The initial state
+      // is considered to be "undefined" (aka "I contain trash memory"), by the way.
+      // "Transfer" in vulkanese means "copy or blit".
+      // Note that Etna sometimes calls this for you to make life simpler, read Etna's code!
       etna::set_state(
         currentCmdBuf,
         backbuffer,
-        vk::PipelineStageFlagBits2::eBottomOfPipe,
+        // We are going to use the texture at the transfer stage...
+        vk::PipelineStageFlagBits2::eTransfer,
+        // ...to transfer-write stuff into it...
+        vk::AccessFlagBits2::eTransferWrite,
+        // ...and want it to have the appropriate layout.
+        vk::ImageLayout::eTransferDstOptimal,
+        vk::ImageAspectFlagBits::eColor);
+      // The set_state doesn't actually record any commands, they are deferred to
+      // the moment you call flush_barriers.
+      // As with set_state, Etna sometimes flushes on it's own.
+      // Usually, flushes should be placed before "action", i.e. compute dispatches
+      // and blit/copy operations.
+      etna::flush_barriers(currentCmdBuf);
+
+
+      // TODO: Record your commands here!
+
+
+      // At the end of "rendering", we are required to change how the pixels of the
+      // swpchain image are laid out in memory to something that is appropriate
+      // for presenting to the window (while preserving the content of the pixels!).
+      etna::set_state(
+        currentCmdBuf,
+        backbuffer,
+        // This looks weird, but is correct. Ask about it later.
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         {},
         vk::ImageLayout::ePresentSrcKHR,
         vk::ImageAspectFlagBits::eColor);
-
-      // After calling set_state manually or Etna doing it for you automatically,
-      // we must flush the barriers. Don't forget to call this before any dispatches,
-      // copies or blits!
+      // And of course flush the layout transition.
       etna::flush_barriers(currentCmdBuf);
     }
     ETNA_CHECK_VK_RESULT(currentCmdBuf.end());

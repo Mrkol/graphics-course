@@ -156,7 +156,7 @@ void Renderer::drawFrame()
       etna::set_state(
         currentCmdBuf,
         image,
-        vk::PipelineStageFlagBits2::eBottomOfPipe,
+        vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         {},
         vk::ImageLayout::ePresentSrcKHR,
         vk::ImageAspectFlagBits::eColor);
