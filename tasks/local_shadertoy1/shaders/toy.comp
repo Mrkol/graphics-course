@@ -4,15 +4,132 @@ layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(binding = 0, rgba8) uniform image2D resultImage;
 
+layout(push_constant) uniform Params {
+  // vec2 iResolution;
+  float iResolution_x;
+  float iResolution_y;
+  // vec2 iMouse;
+  float iMouse_x;
+  float iMouse_y;
+  float iTime;
+} params;
+
+mat3 rotateX(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(1, 0, 0),
+        vec3(0, c, -s),
+        vec3(0, s, c)
+    );
+}
+
+mat3 rotateY(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(c, 0, s),
+        vec3(0, 1, 0),
+        vec3(-s, 0, c)
+    );
+}
+
+mat3 rotateZ(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(c, -s, 0),
+        vec3(s, c, 0),
+        vec3(0, 0, 1)
+    );
+}
+
+mat2 rotate2d(float theta)
+{
+  float c = cos(theta);
+  float s = sin(theta);
+  return mat2(c, -s, s, c);
+}
+
+float dFig(vec3 p, vec3 center, float size, float spikes, float sharpness) {
+    float pi = acos(-1.0);
+    float x = (p - center).x;
+    float y = (p - center).y;
+    float z = (p - center).z;
+    float alpha = asin(x / sqrt(x * x + z * z));
+    float beta = asin(y / sqrt(x * x + y * y));
+    float gamma = asin(z / sqrt(y * y + z * z));
+    float spikeA = pow(sin(alpha * spikes), sharpness);
+    float spikeB = pow(sin(beta * spikes), sharpness);
+    float spikeC = pow(sin(gamma * spikes), sharpness);
+    return length(p - center) - size - min(spikeA, min(spikeB, spikeC));
+}
+
+float sdf(vec3 p, mat3 rotate) {
+    p *= rotate;
+    return dFig(p, vec3(0, 0, 0), 1.0, 1.0 + pow(params.iTime, 2.0) * 0.01, 5.0);
+}
+
+#define MAX_STEPS 2000
+#define MAX_DIST 50.0
+#define EPS 0.00001
+#define TRUST 0.1
+
+vec3 trace(in vec3 from, in vec3 dir, out bool hit, in mat3 rotate) {
+    vec3 p = from;
+    float totalDist = 0.0;
+    hit = false;
+    for (int steps = 0; steps < MAX_STEPS; ++steps) {
+        float dist = sdf(p, rotate);
+        if (dist < EPS) {
+            hit = true;
+            break;
+        }
+        totalDist += dist;
+        if (totalDist > MAX_DIST)
+            break;
+        p += dist * dir * TRUST;
+    }
+    return p;
+}
+
+vec3 normal(vec3 z, float d, mat3 rotate) {
+    float step = max(d * 0.5, EPS);
+    float dx1 = sdf(z + vec3(step, 0, 0), rotate);
+    float dx2 = sdf(z - vec3(step, 0, 0), rotate);
+    float dy1 = sdf(z + vec3(0, step, 0), rotate);
+    float dy2 = sdf(z - vec3(0, step, 0), rotate);
+    float dz1 = sdf(z + vec3(0, 0, step), rotate);
+    float dz2 = sdf(z - vec3(0, 0, step), rotate);
+    return normalize(vec3 (dx1 - dx2, dy1 - dy2, dz1 - dz2));
+}
+
+const vec3 eye = vec3(0, 0, 3);
+const vec3 light = vec3(0.0, 3.0, 5.0);
 
 void main()
 {
-  ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
+  vec2 iResolution = vec2(params.iResolution_x, params.iResolution_y);
+  vec2 iMouse = vec2(params.iMouse_x, params.iMouse_y);
 
-  // TODO: Put your shadertoy code here!
-  // Simple gradient as a test.
-  vec3 color = vec3(vec2(uv) / vec2(1280, 720), 0);
-
+  vec2 uv = (gl_GlobalInvocationID.xy/iResolution.xy - vec2(0.5)) * 10.0 * iResolution.xy / max (iResolution.x, iResolution.y);
+  bool hit;
+  vec4 color = vec4(0, 0, 0, 1);
+  vec4 colorTimed = vec4(sin(params.iTime) * 0.5 + 0.5, cos(params.iTime) * 0.5 + 0.5, 1, 1);
+  vec3 mouse = vec3(iMouse.xy/iResolution.xy - 0.5, 0.0);
+  mat3 rotate = rotateX(mouse.y * 6.0) * rotateY(-mouse.x * 6.0);
+  vec3 dir = normalize(vec3(uv, 0) - eye);
+  vec3 p = trace(eye, dir, hit, rotate);
+  if (hit) {
+      vec3 l = normalize(light - p);
+      vec3 v = normalize(eye - p);
+      vec3 n = normal(p, EPS, rotate);
+      float nl = max(0.0, dot(n, l));
+      vec3 h = normalize(l + v);
+      float nh = max(0.0, dot(n, h));
+      float blick = pow(nh, 100.0);
+      color = vec4(nl) * 0.5 * colorTimed + 0.5 * blick;
+  }
   if (uv.x < 1280 && uv.y < 720)
-    imageStore(resultImage, uv, vec4(color, 1));
+    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), color);
 }
