@@ -30,3 +30,11 @@
 
 Делать пулл-реквест для этой задачи не нужно, достаточно прислать ваш мини-отчёт со скриншотами/картинками.
 
+## Полезные ссылки
+
+1. https://renderdoc.org/ &mdash; кроссплатформенный кроссвендорный кросс-API дебаггер для графики
+2. https://renderdoc.org/docs/window/capture_attach.html#global-process-hook &mdash; секретный функционал RenderDoc с которым получится захватить сильно больше разных приложений
+3. https://developer.nvidia.com/nsight-graphics &mdash; инструмент для отладки и профилирования различных графических API для видеокарт Nvidia
+4. https://gpuopen.com/tools/ &mdash; инструменты для видеокарт AMD (которых не хватит для выполнения этого задания)
+5. https://www.intel.com/content/www/us/en/developer/tools/graphics-performance-analyzers/overview.html &mdash; инструменты для видеокарт Intel (которых не хватит для выполнения этого задания)
+6. https://devblogs.microsoft.com/pix/download/ &mdash; инструмент для отладки и профилирования DirectX11/12 от Microsoft
