@@ -15,3 +15,5 @@
  5. [Локальный shadertoy 2](local_shadertoy2/)
  6. [Кадры в полёте](inflight_frames/)
  7. [Запекалка моделей](model_bakery/)
+ 8. [Много объектов](many_objects/)
+ 9. [Террейн](terrain/)
