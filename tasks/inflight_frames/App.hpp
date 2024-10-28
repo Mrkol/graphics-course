@@ -11,6 +11,7 @@
 #include <etna/GlobalContext.hpp>
 #include <etna/Sampler.hpp>
 
+#define NUM_FRAMES_IN_FLIGHT 3
 
 class App
 {
@@ -30,7 +31,9 @@ private:
 
   glm::uvec2 resolution;
   bool useVsync;
+  unsigned numFramesInFlight = NUM_FRAMES_IN_FLIGHT;
   std::chrono::system_clock::time_point timer;
+  float dt;
   glm::vec2 mouse;
 
   std::unique_ptr<etna::Window> vkWindow;
@@ -45,6 +48,16 @@ private:
   etna::Sampler textureSampler;
 
   etna::Image texture;
+
+  std::array<etna::Buffer, NUM_FRAMES_IN_FLIGHT> arrParamBuff;
+  int frame_count;
+  struct UniformParams
+  {
+      glm::uvec2 res;
+      glm::uvec2 mouse;
+      float time;
+  };
+  UniformParams params;
 
   void initialize();
 };

@@ -27,7 +27,7 @@ endif()
 
 # Uncomment to contribute to etna
 # set(CPM_etna_SOURCE "${PROJECT_SOURCE_DIR}/../etna")
-
+add_definitions(-DTRACY_ENABLE)
 include("cmake/thirdparty.cmake")
 include("cmake/shaders.cmake")
 

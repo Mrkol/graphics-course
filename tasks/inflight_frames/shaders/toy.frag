@@ -5,7 +5,7 @@ layout(location = 0) out vec4 outColor;
 layout(binding = 0) uniform sampler2D iChannel1;
 layout(binding = 1) uniform sampler2D iChannel2;
 
-layout(push_constant) uniform params {
+layout(binding = 2, set = 0) uniform params {
   uvec2 iResolution;
   uvec2 iMouse;
   float iTime;
@@ -248,6 +248,20 @@ vec4 Cubemap(in vec2 fragCoord, in vec3 rayDir, in vec3 n )
         col *= 0.3;
     return vec4(col * 0.4, 1.0);
 }
+float softShadow(in vec3 ro, in vec3 rd, float mint, float w)
+{
+    float res = 1.0;
+    float t = mint;
+    for( int i = 0; i < MAX_SHADOWS_STEPS && t < MAX_DIST; ++i )
+    {
+        float h = map(ro + t * rd).x;
+        if( h < EPS )
+            return 0.0;
+        res = min( res, h / (t * w) );
+        t += clamp(h, 0.1, 0.3);
+    }
+    return res;
+}
 
 vec3 getColor(vec2 res, vec3 p, vec3 ro, Light lightArray[NUM_LIGHT_SOURCES])
 {
@@ -259,7 +273,7 @@ vec3 getColor(vec2 res, vec3 p, vec3 ro, Light lightArray[NUM_LIGHT_SOURCES])
     uv.y *= -1.;
     for(int i = 0; i < lightArray.length(); ++i){
         vec3 l = normalize(lightArray[i].pos - p); // light direction
-        float shadow = 1.; 
+        float shadow = softShadow(p, l, 0.01, .1) + 0.2; 
         vec3 b_color = Cubemap(uv, reflect(p - ro, n) , n ).rgb;
         color += cookTorrance(m, n, l, v, lightArray[i].color * lightArray[i].intensity, b_color ).xyz * shadow; 
     }   
@@ -269,8 +283,8 @@ vec3 getColor(vec2 res, vec3 p, vec3 ro, Light lightArray[NUM_LIGHT_SOURCES])
 vec3 render( vec2 uv, vec3 ro, vec3 rd)
 {
     Light lightArray[NUM_LIGHT_SOURCES] = Light[NUM_LIGHT_SOURCES](
-        Light( vec3(1., 1., 0.), vec3(0., 2., 10.), 1. ),
-        Light( vec3(0.5, 0., 1.), vec3(0., 2., -10.), 1.)
+        Light( vec3(1., 1., 0.), vec3(0., 5., MAX_DIST), 1. ),
+        Light( vec3(0.5, 0., 1.), vec3(0., 5., -MAX_DIST), 0.8)
         );
         
     //vec3 col = texture(iChannel0, rd).rgb; // background color
