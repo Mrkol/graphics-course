@@ -50,6 +50,8 @@
 
 Не забудьте проверить свою запекалку на нескольких моделях: [SimpleMeshes](/resources/scenes/SimpleMeshes/), [lovely_town](/resources/scenes/lovely_town/), [low_poly_dark_town](/resources/scenes/low_poly_dark_town/).
 
+Обратите внимание, что в glTF касательные являются **четырёхмерными** векторами, требуя в последнюю координату записать ориентацию тройки базиса касательного пространства. Ясно, что для конкретного приложения совершенно не обязательно эту информацию хранить в каждой вершине и можно просто всегда использовать правую или левую тройку, получая битангент из векторного произведения. Однако, чтобы запечённые модели можно было открывать в сторонних программах, стоит соблюсти этот каприз glTF и записать после каждого тангента байтик четвёртой компоненты, содержащий число 1.
+
 Также просьба написать запекалку таким образом, чтобы она принимала на вход 1 параметр, путь к `.gltf` модели, а результат клала в ту же папку, но с суффиксом `_baked`.
 То есть при запуске `model_bakery_baker.exe D:/graphics-course/resources/scenes/lovely_town/scene.gltf` ваше приложение должно создавать в этой же папке файлы `scene_baked.gltf` и `scene_baked.bin`.
 
@@ -113,3 +115,5 @@ Roughness, metallic и normals проигнорируем.
 
  1. https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html &mdash; спецификация glTF
  2. https://github.com/KhronosGroup/glTF/blob/main/extensions/2.0/Khronos/KHR_mesh_quantization/README.md &mdash; расширение для квантизации данных в моделях
+ 3. https://github.khronos.org/glTF-Validator/ &mdash; официальный валидатор корректности glTF файлов
+ 4. https://github.khronos.org/glTF-Sample-Viewer-Release/ &mdash; официальный онлайн-просмотрщик glTF файлов
