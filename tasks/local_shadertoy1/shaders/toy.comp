@@ -4,15 +4,142 @@ layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(binding = 0, rgba8) uniform image2D resultImage;
 
+#define MAX_STEPS    90
+#define MAX_DIST     10.0
+#define SHADOW_STEPS 20
+#define EPS          0.003
+
+const vec3 eye   = vec3(0, 1, 5);
+const vec3 light = vec3(2, 5, 5);
+
+
+float sphereSDF(vec3 p, vec3 center, float radius) {
+    return length(p - center) - radius;
+}
+
+
+float planeSDF(vec3 p) {
+    return p.y + EPS;
+}
+
+
+float scene(vec3 point, out int objectID) {
+    float shpereY = sin(-1.0) * 1.0 + 2.0;
+    float sphereDist = sphereSDF(point, vec3(0, shpereY, 0), 1.0);
+    float planeDist = planeSDF(point);
+
+
+    if (sphereDist < planeDist) {
+        objectID = 1;
+        return sphereDist;
+    } else {
+        objectID = 2;
+        return planeDist;
+    }
+}
+
+vec3 generateNormal(vec3 z, float d) {
+    float e = max(d * 0.5, EPS);
+    int temp;
+
+    float dx1 = scene(z + vec3(e, 0, 0), temp);
+    float dx2 = scene(z - vec3(e, 0, 0), temp);
+    float dy1 = scene(z + vec3(0, e, 0), temp);
+    float dy2 = scene(z - vec3(0, e, 0), temp);
+    float dz1 = scene(z + vec3(0, 0, e), temp);
+    float dz2 = scene(z - vec3(0, 0, e), temp);
+
+    return normalize(vec3(dx1 - dx2, dy1 - dy2, dz1 - dz2));
+}
+
+vec3 trace(vec3 from, vec3 dir, out bool hit, out int objectID) {
+    vec3 p = from;
+    float totalDist = 0.0;
+    hit = false;
+
+    for (int step = 0; step < MAX_STEPS; ++step) {
+        float dist = abs(scene(p, objectID));
+        if (dist < EPS) {
+            hit = true;
+            break;
+        }
+
+        totalDist += dist;
+
+        if (totalDist > MAX_DIST)
+            break;
+
+        p += dir * dist;
+    }
+
+    return p;
+}
+
+float softShadow(vec3 from, vec3 dir, float minDist, float maxDist) {
+    float shadowFactor = 1.0;
+    float totalDist = minDist;
+
+    for (int i = 0; i < SHADOW_STEPS; ++i) {
+        int objID;
+        float dist = scene(from + dir * (totalDist + EPS), objID);
+
+        if (dist < EPS) {
+            return 0.0;
+        }
+
+        shadowFactor = min(shadowFactor, dist / totalDist);
+        totalDist += dist;
+
+        if (totalDist > maxDist) {
+            break;
+        }
+    }
+
+    return shadowFactor;
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord, in vec2 iResolution) {
+    bool hit;
+    int objectID;
+    vec3 color;
+
+    vec2 scale = 8.0 * iResolution.xy / max(iResolution.x, iResolution.y);
+    vec2 uv = scale * (fragCoord/iResolution.xy - vec2(0.5));
+    vec3 dir = normalize(vec3(uv, 0) - eye);
+    vec3 p = trace(eye, dir, hit, objectID);
+
+    if (hit) {
+        vec3 l   = normalize(light - p);
+        vec3 v   = normalize(eye - p);
+        vec3 n   = generateNormal(p, EPS);
+        float nl = max(0.0, dot(n, l));
+        vec3 h  = normalize(l + n);
+        float hn = max(0.0, dot(h,n));
+        float sp = pow(hn, 100.0);
+
+        float shadow = softShadow(p + n * EPS, l, EPS, 10.0);
+
+        if (objectID == 1) {
+            color = color = 0.7 * vec3(nl) + 0.3 * cos(0.0+uv.xyx+vec3(0,2,4)) + sp * vec3(1.0, 1.0, 1.0);
+        } else if (objectID == 2) {
+            color = vec3(0.4, 0.5, 0.5) * nl * shadow;
+        }
+    } else {
+        color = vec3(0.1, 0.1, 0.2);
+    }
+
+    fragColor = vec4(color, 1.0);
+}
 
 void main()
 {
   ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
 
-  // TODO: Put your shadertoy code here!
-  // Simple gradient as a test.
-  vec3 color = vec3(vec2(uv) / vec2(1280, 720), 0);
+  vec4 fragCol;
+  vec2 iResolution = vec2(1280.0, 720.0);
 
-  if (uv.x < 1280 && uv.y < 720)
-    imageStore(resultImage, uv, vec4(color, 1));
+  mainImage(fragCol, uv, iResolution);
+
+  if (uv.x < iResolution.x && uv.y < iResolution.y)
+    imageStore(resultImage, uv, fragCol);
 }
