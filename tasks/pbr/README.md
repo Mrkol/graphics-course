@@ -57,7 +57,7 @@
 
 ## Бонусный уровень
 
-Прочитайте про [visibility buffer](https://jcgt.org/published/0002/02/04/) и замените ваш G-буфер на него.
+Прочитайте про [visibility buffer](https://steps3d.narod.ru/tutorials2/visibility-buffer.html) (можно даже [оригинальную статью](https://jcgt.org/published/0002/02/04/)) и замените ваш G-буфер на него.
 
 ## Полезные материалы
 
@@ -67,3 +67,4 @@
 4. https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf &mdash; распределение GGX
 5. https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=183db641ff80ff21234040ccce884cb06227dad4 &mdash; приближение Шлика для коэффициента Френеля
 6. https://jcgt.org/published/0002/02/04/ &mdash; visibility buffer
+7. https://steps3d.narod.ru/tutorials2/visibility-buffer.html &mdash; про visibility buffer от Алексея Викторовича
