@@ -55,9 +55,12 @@ function(target_add_shaders tgt)
           -V
           ${input_path}
           -o ${output_path}
+          --depfile "${output_path}.d"
         VERBATIM
         COMMAND_EXPAND_LISTS
-        DEPENDS ${input_path})
+        DEPENDS ${input_path}
+        DEPFILE "${output_path}.d"
+      )
     list(APPEND SPIRV_BINARY_FILES ${output_path})
   endforeach(glsl_path)
 
