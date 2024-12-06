@@ -6,7 +6,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 if(CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC") # cl and clang-cl
   add_compile_options(/W4 /WX
     # Selectively disable some insane warnings
-    /wd4061 /wd4514
+    /wd4061 /wd4514 /wd4324
     # Enforce standards-compliance in MSVC
     /permissive- /volatile:iso /Zc:inline /Zc:wchar_t /EHsc /Zc:__cplusplus
   )
