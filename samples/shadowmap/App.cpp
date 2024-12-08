@@ -123,10 +123,10 @@ void App::moveCam(Camera& cam, const Keyboard& kb, float dt)
     dir += cam.right();
 
   if (is_held_down(kb[KeyboardKey::kF]))
-    dir -= cam.up();
+    dir += cam.up();
 
   if (is_held_down(kb[KeyboardKey::kR]))
-    dir += cam.up();
+    dir -= cam.up();
 
   // NOTE: This is how you make moving diagonally not be faster than
   // in a straight line.
