@@ -1,0 +1,47 @@
+#version 430
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(binding = 0, rgba8) uniform image2D resultImage;
+
+layout(push_constant) uniform params
+{
+  uvec2 iResolution;
+  float iTime;
+};
+
+#define PI 3.14159265359
+
+// Function to generate a smooth, repeating gradient
+vec3 gradient(vec2 uv) {
+    float angle = atan(uv.y, uv.x) + iTime;
+    float dist = length(uv);
+    return vec3(sin(angle * 10.0 + dist * 5.0), sin(angle * 20.0 + dist * 10.0), sin(angle * 30.0 + dist * 15.0));
+}
+
+// Function to generate a rotating spiral pattern
+vec3 spiral(vec2 uv) {
+    float angle = atan(uv.y, uv.x) + iTime * 2.0;
+    float radius = length(uv) * 5.0;
+    float value = sin(angle * 10.0 + radius);
+    return vec3(value, value * 0.5, value * 0.25);
+}
+
+void main() {
+    ivec2 fragCoord = ivec2(gl_GlobalInvocationID.xy);
+    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / max(iResolution.x, iResolution.y);
+
+    // Choose between different patterns using a simple condition
+    vec3 color;
+    if (uv.x < 0.5) {
+        color = gradient(uv * 2.0);
+    } else {
+        color = spiral(uv * 2.0);
+    }
+
+    vec4 fragColor = vec4(color, 1.0);
+
+    if (fragCoord.x < 1280 && fragCoord.y < 720) {
+      imageStore(resultImage, fragCoord, fragColor);
+    }
+}

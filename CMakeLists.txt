@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.30)
 
 project(graphics_course CXX)
 
+add_compile_options(-Wno-stringop-overflow)
+
 # Prevent the user from polluting the root directory with build files
 if(PROJECT_SOURCE_DIR STREQUAL PROJECT_BINARY_DIR)
   message(
