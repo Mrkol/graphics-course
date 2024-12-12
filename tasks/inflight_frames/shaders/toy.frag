@@ -1,32 +1,42 @@
-#version 430
+#version 450
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : require
 
-layout(location = 0) out vec4 fragColor;
+#include "UniformParams.h"
 
-layout(binding = 0) uniform sampler2D iChannel0;
-layout(binding = 1) uniform sampler2D iChannel1;
+layout(location = 0) out vec4 color;
+
+layout (location = 0 ) in VS_OUT
+{
+  vec2 texCoord;
+} surf;
 
 layout(push_constant) uniform params
 {
-  uvec2 iResolution;
-  uvec2 iMouse;
   float iTime;
+} pushConstant;
+
+layout(binding = 0) uniform samplerCube cubeMap;
+
+layout(binding = 1) uniform sampler2D iChannel1;
+layout(binding = 2) uniform AppData {
+  UniformParams UniParams;
 };
 
 float map(vec3 pos, out vec3 p) {
-    float r1 = cos(iTime * 0.5) * 2.0;
-    vec3 center1 = vec3(r1*cos(iTime*1.6), 0.0, r1*sin(iTime*1.6));
+    float r1 = cos(pushConstant.iTime * 0.5) * 2.0;
+    vec3 center1 = vec3(r1*cos(pushConstant.iTime*1.6), 0.0, r1*sin(pushConstant.iTime*1.6));
     p = pos - center1;
     float d = length(pos - center1) - 1.0;
-    float r2 = cos(iTime * 0.75) * 4.0;
-    vec3 center2 = vec3(r2*sin(iTime*1.7), r2*cos(iTime), 0.0*1.7);
+    float r2 = cos(pushConstant.iTime * 0.75) * 4.0;
+    vec3 center2 = vec3(r2*sin(pushConstant.iTime*1.7), r2*cos(pushConstant.iTime), 0.0*1.7);
     float d2 = length(pos - center2) - 1.0;
     if (d > d2) {
         d = d2;
         p = pos - center2;
     }
-    float r3 = cos(iTime * 2.25) * 3.0;
-    vec3 center3 = vec3(0.0, r3 * sin(iTime*2.0), r3 * cos(iTime*2.0));
+    float r3 = cos(pushConstant.iTime * 2.25) * 3.0;
+    vec3 center3 = vec3(0.0, r3 * sin(pushConstant.iTime*2.0), r3 * cos(pushConstant.iTime*2.0));
     float d3 = length(pos - center3) - 1.0;
     if (d > d3) {
         d = d3;
@@ -70,9 +80,9 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
     float I_s = 1.0;
     float n = 64.0;
     
-    vec2 uv = fragCoord.xy / iResolution.xy;
+    vec2 uv = fragCoord.xy / UniParams.resolution.xy;
     uv = uv * 2.0 - 1.0;
-    uv.x *= iResolution.x / iResolution.y;
+    uv.x *= UniParams.resolution.x / UniParams.resolution.y;
     vec3 col = vec3(0.0);
     vec3 ro = vec3(0.0, 0.0, 6.0);
     vec3 rd = normalize(vec3(uv, -1.0));
@@ -86,7 +96,7 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         if (d < 0.001)
         {
             vec3 n = getNormal(pos);
-            vec3 l = normalize(vec3(cos(iTime* 1.2), cos(iTime* 1.3) * sin(iTime* 1.4), sin(iTime * 1.5)));
+            vec3 l = normalize(vec3(cos(pushConstant.iTime* 1.2), cos(pushConstant.iTime* 1.3) * sin(pushConstant.iTime* 1.4), sin(pushConstant.iTime * 1.5)));
             vec3 r = l - 2.0*dot(l, n) * n;
             float diff = clamp(I_d * dot(n, l), 0.0, 1.0);
             float spec = clamp(I_s * pow(max(0.0, dot(r, rd)), 64.0), 0.0, 1.0);
@@ -99,9 +109,11 @@ void mainImage( out vec4 fragColor, in vec2 fragCoord )
         }
     }
 
-    vec3 col2 = textureLod(iChannel0, rd.xy / 2 + 0.5, 0).rgb;
+    fragColor = texture(cubeMap, rd);
+
+    // vec3 col2 = textureLod(iChannel0, rd.xy / 2 + 0.5, 0).rgb;
     
-    fragColor = vec4(col2, 1.0);
+    // fragColor = vec4(col2, 1.0);
 }
 
 
@@ -110,7 +122,7 @@ void main()
   vec2 uv = vec2(gl_FragCoord).xy;
   // vec4 fragColor;
 
-  mainImage(fragColor, uv);
+  mainImage(color, uv);
 
   // TODO: Put your shadertoy code here!
   // Simple gradient as a test.

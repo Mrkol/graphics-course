@@ -11,20 +11,29 @@
 #include <chrono>
 #include <etna/Sampler.hpp>
 #include <etna/BlockingTransferHelper.hpp>
+#include <scene/Camera.hpp>
+
+#include "Renderer.hpp"
 
 
 class App
 {
+
 public:
   App();
   ~App();
 
+  void processInput();
   void run();
+
+  void rotateCam(const Mouse& ms);
 
 private:
   void drawFrame();
 
 private:
+  Renderer renderer;
+
   OsWindowingManager windowing;
   std::unique_ptr<OsWindow> osWindow;
 
@@ -34,14 +43,7 @@ private:
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
 
-  etna::ComputePipeline texturePipeline;
-  etna::Image textureImage;
-  etna::Sampler textureSampler;
-
   std::chrono::system_clock::time_point timeStart;
-  etna::GraphicsPipeline shaderPipeline;
 
-  std::unique_ptr<etna::BlockingTransferHelper> transferHelper;
-  etna::Image fileTextureImage;
-  etna::Sampler fileTextureSampler;
+  Camera cam;
 };
