@@ -65,7 +65,7 @@
 2. https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#materials &mdash; формат хранения материалов в glTF
 3. https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#material-structure &mdash; предполагаемый моделями glTF метод PBR-освещения
 4. https://www.graphics.cornell.edu/~westin/pubs/TorranceSparrowJOSA1967.pdf &mdash; микрофасетная модель
-5 https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf &mdash; распределение GGX
+5. https://www.cs.cornell.edu/~srm/publications/EGSR07-btdf.pdf &mdash; распределение GGX
 6. https://citeseerx.ist.psu.edu/document?repid=rep1&type=pdf&doi=183db641ff80ff21234040ccce884cb06227dad4 &mdash; приближение Шлика для коэффициента Френеля
 7. https://jcgt.org/published/0002/02/04/ &mdash; visibility buffer
 8. https://steps3d.narod.ru/tutorials2/visibility-buffer.html &mdash; про visibility buffer от Алексея Викторовича
