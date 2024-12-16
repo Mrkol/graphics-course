@@ -73,8 +73,18 @@ App::App()
   // How it is actually performed is not trivial, but we can skip this for now.
   commandManager = etna::get_context().createPerFrameCmdMgr();
 
+  etna::create_program(computeProgramName, {LOCAL_SHADERTOY1_SHADERS_ROOT "toy.comp.spv"});
 
-  // TODO: Initialize any additional resources you require here!
+  sampler = etna::Sampler(etna::Sampler::CreateInfo{.name = "default_sampler"});
+
+  pipeline = etna::get_context().getPipelineManager().createComputePipeline(computeProgramName, {});
+
+  image = etna::get_context().createImage(etna::Image::CreateInfo{
+    .extent = vk::Extent3D{resolution.x, resolution.y, 1},
+    .name = "Image",
+    .format = vk::Format::eR8G8B8A8Unorm,
+    .imageUsage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc,
+  });
 }
 
 App::~App()
@@ -137,9 +147,64 @@ void App::drawFrame()
       // and blit/copy operations.
       etna::flush_barriers(currentCmdBuf);
 
+      const auto info = etna::get_shader_program(computeProgramName);
+      const auto set = etna::create_descriptor_set(
+        info.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {etna::Binding{0, image.genBinding(sampler.get(), vk::ImageLayout::eGeneral)}});
 
-      // TODO: Record your commands here!
+      const auto vkSet = set.getVkSet();
 
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
+      currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
+
+      // Setting state of compute shader for image
+      etna::set_state(
+        currentCmdBuf,
+        image.get(),
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderWrite,
+        vk::ImageLayout::eGeneral,
+        vk::ImageAspectFlagBits::eColor);
+      etna::flush_barriers(currentCmdBuf);
+
+      const int groupSize = 32;
+      currentCmdBuf.dispatch(resolution.x / groupSize + 1, resolution.y / groupSize + 1, 1);
+
+      const auto subresource =
+        vk::ImageSubresourceLayers{.aspectMask = vk::ImageAspectFlagBits::eColor, .layerCount = 1};
+
+      const auto offset = std::array{
+        vk::Offset3D{},
+        vk::Offset3D{
+          .x = static_cast<int32_t>(resolution.x),
+          .y = static_cast<int32_t>(resolution.y),
+          .z = 1}};
+
+      const auto regions = vk::ImageBlit{
+        .srcSubresource = subresource,
+        .srcOffsets = offset,
+        .dstSubresource = subresource,
+        .dstOffsets = offset};
+
+      // Setting state for transfer. Backbuffer is already in appropriate state.
+      etna::set_state(
+        currentCmdBuf,
+        image.get(),
+        vk::PipelineStageFlagBits2::eTransfer,
+        vk::AccessFlagBits2::eTransferRead,
+        vk::ImageLayout::eTransferSrcOptimal,
+        vk::ImageAspectFlagBits::eColor);
+      etna::flush_barriers(currentCmdBuf);
+
+      currentCmdBuf.blitImage(
+        image.get(),
+        vk::ImageLayout::eTransferSrcOptimal,
+        backbuffer,
+        vk::ImageLayout::eTransferDstOptimal,
+        regions,
+        vk::Filter::eLinear);
 
       // At the end of "rendering", we are required to change how the pixels of the
       // swpchain image are laid out in memory to something that is appropriate
