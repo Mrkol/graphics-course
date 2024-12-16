@@ -1,18 +1,99 @@
 #version 430
 
+const float iTime = 0.3333f;
+const vec2 iResolution = vec2(850.0, 400.0);
+
 layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(binding = 0, rgba8) uniform image2D resultImage;
 
 
+float cubeWithHolesSDF(vec3 p, vec3 b, float holeRadius) {
+    vec3 d = abs(p) - b; 
+    float cubeDist = length(max(d, 0.0)) + min(max(d.x, max(d.y, d.z)), 0.0);
+    float holeX = length(p.yz) - holeRadius;
+    float holeY = length(p.xz) - holeRadius;
+    float holeZ = length(p.xy) - holeRadius;
+    return max(cubeDist, -min(holeX, min(holeY, holeZ)));
+}
+
+float rayMarch(vec3 ro, vec3 rd) {
+    float dist = 0.0;
+    for (int i = 0; i < 100; i++) {
+        vec3 p = ro + rd * dist;
+        float angle = iTime;
+        mat3 rotation = mat3(
+            cos(angle), 0.0, -sin(angle),
+            0.0, 1.0, 0.0,
+            sin(angle), 0.0, cos(angle)
+        );
+        
+        vec3 rotatedP = rotation * p;
+        float d = cubeWithHolesSDF(rotatedP, vec3(1.0, 1.0, 1.0), 0.3);
+        if (d < 0.01) break;
+        dist += d;
+    }
+    return dist;
+}
+
+vec3 calcNormal(vec3 p) {
+    vec2 e = vec2(0.001, 0.0);
+    return normalize(vec3(
+        cubeWithHolesSDF(p + vec3(e.x, e.y, 0.0), vec3(1.0, 1.0, 1.0), 0.3) - cubeWithHolesSDF(p - vec3(e.x, e.y, 0.0), vec3(1.0, 1.0, 1.0), 0.3),
+        cubeWithHolesSDF(p + vec3(0.0, e.x, e.y), vec3(1.0, 1.0, 1.0), 0.3) - cubeWithHolesSDF(p - vec3(0.0, e.x, e.y), vec3(1.0, 1.0, 1.0), 0.3),
+        cubeWithHolesSDF(p + vec3(e.y, 0.0, e.x), vec3(1.0, 1.0, 1.0), 0.3) - cubeWithHolesSDF(p - vec3(e.y, 0.0, e.x), vec3(1.0, 1.0, 1.0), 0.3)
+    ));
+}
+
+vec3 phongLighting(vec3 p, vec3 lightPos, vec3 viewDir) {
+    vec3 normal = calcNormal(p);
+    vec3 lightDir = normalize(lightPos - p);
+
+    float diff = max(dot(normal, lightDir), 0.0);
+    vec3 reflectDir = reflect(-lightDir, normal);
+    float spec = pow(max(dot(viewDir, reflectDir), 0.0), 16.0);
+
+    return vec3(0.1) + vec3(0.8) * diff + vec3(1.0) * spec;
+}
+
+void mainImage(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 uv = (fragCoord - iResolution.xy * 0.5) / iResolution.y;
+
+    vec3 ro = vec3(0, 0, 5);
+    vec3 rd = normalize(vec3(uv, -1.0));
+
+    float dist = rayMarch(ro, rd);
+    vec3 p = ro + rd * dist;
+
+    if (dist > 100.0) {
+        fragColor = vec4(0, 0.4, 0.6, 1);
+        return;
+    }
+
+    float lightRadius = 3.0;
+    vec3 lightPos = vec3(
+        lightRadius * cos(iTime),
+        lightRadius * sin(iTime),
+        3);
+
+    vec3 color = phongLighting(p, lightPos, -rd);
+
+    fragColor = vec4(color, 1.0);
+}
+
+
 void main()
 {
-  ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
-
   // TODO: Put your shadertoy code here!
   // Simple gradient as a test.
-  vec3 color = vec3(vec2(uv) / vec2(1280, 720), 0);
+  //vec3 color = vec3(vec2(uv) / vec2(1280, 720), 0);
+  
+  vec4 fragColor;
+  vec2 fragCoord = gl_GlobalInvocationID.xy;
 
-  if (uv.x < 1280 && uv.y < 720)
-    imageStore(resultImage, uv, vec4(color, 1));
+  mainImage(fragColor, fragCoord);
+
+
+  if (fragCoord.x < 1280 && fragCoord.y < 720)
+    imageStore(resultImage, ivec2(gl_GlobalInvocationID.xy), fragColor);
 }
