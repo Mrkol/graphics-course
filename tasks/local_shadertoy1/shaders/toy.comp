@@ -10,7 +10,6 @@ const float MIN_DIST = 0.0;
 const float MAX_DIST = 100.0;
 const float PRECISION = 1e-3;
 const float RAD = 1.0;
-const float FLOOR_SCALE = 1.0;
 
 struct Sphere {
     vec3 center;
@@ -63,31 +62,13 @@ vec3 calcNormal(vec3 p) {
     );
 }
 
-vec4 skybox(vec3 rd) {
-    vec3 envColor = texture(iChannel0, rd).rgb;
-    return vec4(envColor, 1.0);
-}
-
-vec3 triPlanarProjection(vec3 p, vec3 normal, sampler2D tex) {
-    normal = abs(normal);
-    vec3 blend = normalize(pow(normal, vec3(10.0)));
-    blend /= (blend.x + blend.y + blend.z);
-
-    vec3 xTex = texture(tex, p.yz).rgb;
-    vec3 yTex = texture(tex, p.zx).rgb;
-    vec3 zTex = texture(tex, p.xy).rgb;
-
-    return xTex * blend.x + yTex * blend.y + zTex * blend.z;
-}
-
-vec4 floorTexture(vec3 p) {
-    vec3 texColor = texture(iChannel2, p.xz * FLOOR_SCALE).rgb; // Sample the floor texture
-    return vec4(texColor, 1.0);
-}
-
-vec3 staticTriPlanarProjection(vec3 worldPos, vec3 objectCenter, vec3 normal, sampler2D tex) {
-    vec3 p = worldPos - objectCenter; // Use local coordinates relative to sphere's center
-    return triPlanarProjection(p, normal, tex);
+vec4 rayPlaneIntersection(vec3 ro, vec3 rd, float planeY, vec3 col) {
+    float t = (planeY - ro.y) / rd.y;
+    if (t > 0.0) {
+        vec3 p = ro + t * rd;
+        return vec4(col, 1.0);
+    }
+    return vec4(0.0);
 }
 
 void mainImage(out vec4 fragColor, in vec2 fragCoord) {
@@ -114,34 +95,26 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
     if (d < MAX_DIST) {
         vec3 p = ro + rd * d;
         vec3 normal = calcNormal(p);
-
-        // Apply static tri-planar texture
-        for (int i = 0; i < 3; i++) {
-            if (abs(sdSphere(p, spheres[i])) < PRECISION) {
-                col = staticTriPlanarProjection(p, spheres[i].center, normal, iChannel1);
-                break;
-            }
-        }
-
         vec3 lightPos = vec3(1.5, 5.0, 3.0);
         vec3 lightDir = normalize(lightPos - p);
         float diff = max(dot(normal, lightDir), 0.0);
-        col *= diff;
+        col = diff * vec3(0.7, 0.4, 0.4);
     } else {
-        float planeY = 0.0; // Floor plane
-        float t = (planeY - ro.y) / rd.y;
-        if (t > 0.0) {
-            vec3 p = ro + t * rd;
-            fragColor = floorTexture(p);
+        vec4 floorColor = rayPlaneIntersection(ro, rd, 0.0, vec3(0.0, 0.8, 0.0));
+        if (floorColor.a > 0.0) {
+            fragColor = floorColor;
             return;
         }
-
-        fragColor = skybox(rd);
-        return;
+        vec4 ceilingColor = rayPlaneIntersection(ro, rd, 3.0, vec3(0.5, 0.7, 1.0));
+        if (ceilingColor.a > 0.0) {
+            fragColor = ceilingColor;
+            return;
+        }
     }
 
     fragColor = vec4(col, 1.0);
 }
+
 
 
 void main()
