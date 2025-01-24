@@ -1,18 +1,136 @@
 #version 430
 
-layout(local_size_x = 32, local_size_y = 32) in;
 
-layout(binding = 0, rgba8) uniform image2D resultImage;
+#define MAX_STEPS 100
+#define MAX_DIST  100.0
+#define EPSILON   0.001
+
+float iTime;
+vec2 iResolution;
+vec2 iMouse;
+
+mat2 rotate2d(float a) {
+    float c = cos(a), s = sin(a);
+    return mat2(c, -s,
+                s,  c);
+}
+
+float sdSphere(vec3 p, float r) {
+    return length(p) - r;
+}
+
+float sdPlane(vec3 p) {
+    return p.y;
+}
+
+float opUnion(float d1, float d2) {
+    return min(d1, d2);
+}
 
 
-void main()
-{
-  ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
+float mapScene(vec3 p) {
+    float bigSphere = sdSphere(p - vec3(0.0, 1.0, 0.0), 1.0);
+    float orbitRadius = 2.0;
+    float planetX = orbitRadius * sin(iTime);
+    float planetZ = orbitRadius * cos(iTime);
+    float smallSphere = sdSphere(p - vec3(planetX, 1.0, planetZ), 0.3);
 
-  // TODO: Put your shadertoy code here!
-  // Simple gradient as a test.
-  vec3 color = vec3(vec2(uv) / vec2(1280, 720), 0);
+    float plane = sdPlane(p);
 
-  if (uv.x < 1280 && uv.y < 720)
-    imageStore(resultImage, uv, vec4(color, 1));
+    float distScene = opUnion(bigSphere, smallSphere);
+    distScene = opUnion(distScene, plane);
+
+    return distScene;
+}
+
+vec3 calcNormal(vec3 p) {
+    float d = mapScene(p);
+    vec2 e = vec2(0.002, 0.0);
+
+    vec3 n;
+    n.x = mapScene(p + vec3(e.x, e.y, e.y)) - d;
+    n.y = mapScene(p + vec3(e.y, e.x, e.y)) - d;
+    n.z = mapScene(p + vec3(e.y, e.y, e.x)) - d;
+    return normalize(n);
+}
+
+
+float rayMarch(vec3 ro, vec3 rd) {
+    float t = 0.0;
+    for(int i = 0; i < MAX_STEPS; i++)
+    {
+        vec3 p = ro + rd * t;
+        float dist = mapScene(p);
+        if(dist < EPSILON)
+            return t;
+        t += dist;
+        if(t > MAX_DIST)
+            break;
+    }
+    return -1.0;
+}
+
+
+vec3 lighting(vec3 p, vec3 ro, vec3 rd) {
+    vec3 n = calcNormal(p);
+    vec3 lightPos   = vec3(3.0, 5.0, 3.0);
+    vec3 lightColor = vec3(1.0, 0.97, 0.9);
+
+    vec3 L = normalize(lightPos - p);
+
+    float diff = max(dot(n, L), 0.0);
+
+    vec3 R = reflect(-L, n);
+    float spec = pow(max(dot(R, -rd), 0.0), 32.0);
+
+    float shadow = 1.0;
+    {
+        float distToLight = rayMarch(p + n*EPSILON*2.0, L);
+        float distLight   = length(lightPos - p);
+        if(distToLight > 0.0 && distToLight < distLight)
+        {
+            shadow = 0.2;
+        }
+    }
+
+    vec3 ambient = vec3(0.05);
+
+    vec3 color = ambient
+               + lightColor * diff * shadow
+               + lightColor * spec * shadow;
+
+    color += 0.05 * n;
+
+    return color;
+}
+
+void main(out vec4 fragColor, in vec2 fragCoord) {
+    vec2 uv = (fragCoord - 0.5 * iResolution.xy) / iResolution.y;
+    float time   = iTime * 0.2;
+    float radius = 5.0;
+
+    vec3 ro = vec3(
+        radius * sin(time),
+        2.0,
+        radius * cos(time)
+    );
+    vec3 center = vec3(0.0, 1.0, 0.0);
+
+    vec3 cw = normalize(center - ro);
+    vec3 cr = normalize(cross(vec3(0,1,0), cw));
+    vec3 cu = cross(cw, cr);
+    vec3 rd = normalize(uv.x * cr + uv.y * cu + cw);
+    float t = rayMarch(ro, rd);
+    vec3 skyColorTop = vec3(0.6, 0.8, 1.0);
+    vec3 skyColorBot = vec3(0.9, 0.9, 1.0);
+    vec3 col = mix(skyColorTop, skyColorBot, uv.y + 0.5);
+
+
+    if(t > 0.0)
+    {
+        vec3 p = ro + rd * t;
+        col = lighting(p, ro, rd);
+    }
+
+    fragColor = vec4(col, 1.0);
 }
