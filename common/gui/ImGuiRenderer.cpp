@@ -80,6 +80,7 @@ void ImGuiRenderer::initImGui(vk::Format a_target_format)
     .MSAASamples = VkSampleCountFlagBits::VK_SAMPLE_COUNT_1_BIT,
     .PipelineCache = VK_NULL_HANDLE,
     .Subpass = 0,
+    .DescriptorPoolSize = 0,
     .UseDynamicRendering = true,
     .PipelineRenderingCreateInfo =
       VkPipelineRenderingCreateInfoKHR{
