@@ -21,7 +21,7 @@ App::App()
 
   mainCam.lookAt({0, 10, 10}, {0, 0, 0}, {0, 1, 0});
 
-  renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/low_poly_dark_town/scene_baked.gltf");
+  renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/Avocado/Avocado_baked.gltf");
 }
 
 void App::run()
@@ -103,6 +103,7 @@ void App::moveCam(Camera& cam, const Keyboard& kb, float dt)
   // NOTE: This is how you make moving diagonally not be faster than
   // in a straight line.
   cam.move(dt * camMoveSpeed * (length(dir) > 1e-9 ? normalize(dir) : dir));
+  renderer->updateCamPos(cam.position);
 }
 
 void App::rotateCam(Camera& cam, const Mouse& ms, float /*dt*/)

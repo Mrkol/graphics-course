@@ -28,7 +28,11 @@ void WorldRenderer::allocateResources(glm::uvec2 swapchain_resolution)
 
 void WorldRenderer::loadScene(std::filesystem::path path)
 {
-  sceneMgr->selectScene(path);
+  if (path.stem().string().ends_with("_baked")) {
+    sceneMgr->selectSceneBaked(path);
+  } else {
+    sceneMgr->selectScene(path);
+  }
 }
 
 void WorldRenderer::loadShaders()

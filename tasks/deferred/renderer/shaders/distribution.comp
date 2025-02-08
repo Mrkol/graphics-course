@@ -1,0 +1,29 @@
+#version 430
+
+layout(local_size_x = 128) in;
+
+layout(binding = 0) buffer h_t
+{
+    int bucket[128];
+} histogram_in;
+
+
+layout(binding = 1) buffer b
+{
+    float distribution[128];
+} histogram_out;
+
+void main() {
+    int pref  = 0;
+    int total = 0;
+    // I know that this way is not optimal for GPU if there were a lot of buckets;
+    // But for 128 buckets it seems ok; 
+    for(int i = 0; i < 128; ++i) {
+        total += histogram_in.bucket[i];
+        if (i <= gl_GlobalInvocationID.x) 
+            pref += histogram_in.bucket[i];
+    }
+    histogram_out.distribution[gl_GlobalInvocationID.x] = float(pref) / float(total);
+    memoryBarrierBuffer();
+    histogram_in.bucket[gl_GlobalInvocationID.x] = 0;
+}

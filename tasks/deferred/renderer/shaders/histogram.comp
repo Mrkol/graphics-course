@@ -1,0 +1,29 @@
+#version 430
+
+layout(local_size_x = 32, local_size_y = 32) in;
+
+layout(binding = 0, r11f_g11f_b10f) uniform image2D image;
+
+layout(binding = 1) buffer h_t
+{
+    int bucket[128];
+} histogram;
+
+
+int brightnessIdx(vec3 c)
+{
+    //TODO: pass top clamp value as parameter or evaluate it
+    float brightness = clamp(max(c.r, max(c.g, c.b)), 0., 1.);
+    return int(floor(127. * brightness));
+}
+
+void main()
+{
+    ivec2 size = imageSize(image);
+    ivec2 texCoord = ivec2(gl_GlobalInvocationID.xy);
+    if (texCoord.x < size.x && texCoord.y < size.y) {   
+        vec4 color = imageLoad(image, texCoord);
+        int bb = brightnessIdx(color.rgb);
+        atomicAdd(histogram.bucket[bb], 1);
+    }
+}

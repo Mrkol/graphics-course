@@ -62,6 +62,9 @@ void App::processInput(float dt)
   if (mainWindow->captureMouse)
     rotateCam(mainCam, mainWindow->mouse, dt);
 
+  if(mainWindow->keyboard[KeyboardKey::kP] == ButtonState::Falling)
+    spdlog::info("Current position: {{{}, {}, {}}}", mainCam.position.x, mainCam.position.y, mainCam.position.z);
+
   renderer->debugInput(mainWindow->keyboard);
 }
 
@@ -99,6 +102,13 @@ void App::moveCam(Camera& cam, const Keyboard& kb, float dt)
 
   if (is_held_down(kb[KeyboardKey::kR]))
     dir += cam.up();
+
+  if (is_held_down(kb[KeyboardKey::kSpace]))
+    dir += glm::vec3{0, 1, 0};
+
+  if (is_held_down(kb[KeyboardKey::kC]))
+    dir -= glm::vec3{0, 1, 0};
+  
 
   // NOTE: This is how you make moving diagonally not be faster than
   // in a straight line.

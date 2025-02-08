@@ -13,8 +13,6 @@ struct RenderElement
   std::uint32_t vertexOffset;
   std::uint32_t indexOffset;
   std::uint32_t indexCount;
-  // Not implemented!
-  // Material* material;
 };
 
 // A mesh is a collection of relems. A scene may have the same mesh
@@ -46,9 +44,9 @@ std::optional<tinygltf::Model> load_model(std::filesystem::path path)
 
   auto ext = path.extension();
   if (ext == ".gltf")
-    success = loader.LoadASCIIFromFile(&model, &error, &warning, path.string());
+    success = loader.LoadASCIIFromFile(&model, &error, &warning, path.generic_string<char>());
   else if (ext == ".glb")
-    success = loader.LoadBinaryFromFile(&model, &error, &warning, path.string());
+    success = loader.LoadBinaryFromFile(&model, &error, &warning, path.generic_string<char>());
   else
   {
     spdlog::error("glTF: Unknown glTF file extension: '{}'. Expected .gltf or .glb.", ext);
@@ -140,16 +138,19 @@ BakeResult do_bakery(tinygltf::Model& model)
       const auto normalIt = prim.attributes.find("NORMAL");
       const auto tangentIt = prim.attributes.find("TANGENT");
       const auto texcoordIt = prim.attributes.find("TEXCOORD_0");
+      const auto normTexcoordIt = prim.attributes.find("TEXCOORD_1");
 
       const bool hasNormals = normalIt != prim.attributes.end();
       const bool hasTangents = tangentIt != prim.attributes.end();
       const bool hasTexcoord = texcoordIt != prim.attributes.end();
+      const bool hasNormTexcoord = normTexcoordIt != prim.attributes.end();
       std::array accessorIndices{
         prim.indices,
         prim.attributes.at("POSITION"),
         hasNormals ? normalIt->second : -1,
         hasTangents ? tangentIt->second : -1,
         hasTexcoord ? texcoordIt->second : -1,
+        hasNormTexcoord ? normTexcoordIt->second : -1,
       };
 
       std::array accessors{
@@ -158,6 +159,7 @@ BakeResult do_bakery(tinygltf::Model& model)
         hasNormals ? &model.accessors[accessorIndices[2]] : nullptr,
         hasTangents ? &model.accessors[accessorIndices[3]] : nullptr,
         hasTexcoord ? &model.accessors[accessorIndices[4]] : nullptr,
+        hasNormTexcoord ? &model.accessors[accessorIndices[5]] : nullptr,
       };
 
       std::array bufViews{
@@ -166,6 +168,7 @@ BakeResult do_bakery(tinygltf::Model& model)
         hasNormals ? &model.bufferViews[accessors[2]->bufferView] : nullptr,
         hasTangents ? &model.bufferViews[accessors[3]->bufferView] : nullptr,
         hasTexcoord ? &model.bufferViews[accessors[4]->bufferView] : nullptr,
+        hasNormTexcoord ? &model.bufferViews[accessors[5]->bufferView] : nullptr,
       };
 
       result.relems.push_back(RenderElement{
@@ -193,6 +196,10 @@ BakeResult do_bakery(tinygltf::Model& model)
           ? reinterpret_cast<const std::byte*>(model.buffers[bufViews[4]->buffer].data.data()) +
             bufViews[4]->byteOffset + accessors[4]->byteOffset
           : nullptr,
+        hasNormTexcoord
+          ? reinterpret_cast<const std::byte*>(model.buffers[bufViews[5]->buffer].data.data()) +
+            bufViews[5]->byteOffset + accessors[5]->byteOffset
+          : nullptr,
       };
 
       std::array strides{
@@ -219,6 +226,11 @@ BakeResult do_bakery(tinygltf::Model& model)
                          : tinygltf::GetComponentSizeInBytes(accessors[4]->componentType) *
                            tinygltf::GetNumComponentsInType(accessors[4]->type))
                     : 0,
+        hasNormTexcoord ? (bufViews[5]->byteStride != 0
+                         ? bufViews[5]->byteStride
+                         : tinygltf::GetComponentSizeInBytes(accessors[5]->componentType) *
+                           tinygltf::GetNumComponentsInType(accessors[5]->type))
+                    : 0,
       };
 
       for (std::size_t i = 0; i < vertexCount; ++i)
@@ -231,6 +243,7 @@ BakeResult do_bakery(tinygltf::Model& model)
         glm::vec3 normal{0};
         glm::vec3 tangent{0};
         glm::vec2 texcoord{0};
+        glm::vec2 normTexcoord{0};
         std::memcpy(&pos, ptrs[1], sizeof(pos));
 
         // NOTE: it's faster to do a template here with specializations for all combinations than to
@@ -241,12 +254,15 @@ BakeResult do_bakery(tinygltf::Model& model)
           std::memcpy(&tangent, ptrs[3], sizeof(tangent));
         if (hasTexcoord)
           std::memcpy(&texcoord, ptrs[4], sizeof(texcoord));
+        if (hasNormTexcoord)
+          std::memcpy(&normTexcoord, ptrs[5], sizeof(normTexcoord));
 
 
         vtx.cord = pos;
         vtx.norm = compact_normal(normal);
         vtx.texture = texcoord;
         vtx.tangent = compact_normal(tangent);
+        vtx.normTexCoord = normTexcoord;
 
         ptrs[1] += strides[1];
         if (hasNormals)
@@ -255,6 +271,8 @@ BakeResult do_bakery(tinygltf::Model& model)
           ptrs[3] += strides[3];
         if (hasTexcoord)
           ptrs[4] += strides[4];
+        if (hasNormTexcoord)
+          ptrs[5] += strides[5];
       }
 
       // Indices are guaranteed to have no stride
@@ -286,7 +304,13 @@ BakeResult do_bakery(tinygltf::Model& model)
 
 void append_model(tinygltf::Model& model, BakeResult& baked, Path dest)
 {
-
+   for (auto& image: model.images) {
+    if (image.uri.ends_with("jpeg")) {
+      //Fix jpeg filename isn't supported 
+      image.uri.pop_back();
+      image.uri.back() = 'g';
+    }
+  }
 
   std::size_t indicesBytes =  baked.indices.size() * sizeof(uint32_t);
   std::size_t vertexBytes  =  baked.vertices.size() * sizeof(VertexAttrs);
@@ -297,8 +321,8 @@ void append_model(tinygltf::Model& model, BakeResult& baked, Path dest)
   
   {
     tinygltf::Buffer buffer{};
-    buffer.name = dest.stem();
-    buffer.uri = dest.filename();
+    buffer.name = dest.stem().generic_string<char>();
+    buffer.uri = dest.filename().generic_string<char>();
     buffer.data.resize(vertOffset + vertexBytes);
 
 
@@ -432,7 +456,7 @@ int bake(Path path)
   tinygltf::TinyGLTF storer;
   dest.replace_extension(".gltf");
   spdlog::info("Writing result to: {}", dest);
-  if (!storer.WriteGltfSceneToFile(&model, dest, false, false, true, false)) {
+  if (!storer.WriteGltfSceneToFile(&model, dest.generic_string<char>(), false, false, true, false)) {
     spdlog::error("Writing is unsuccessful");
   }
 
