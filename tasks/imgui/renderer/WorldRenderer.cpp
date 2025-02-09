@@ -5,6 +5,7 @@
 #include <etna/RenderTargetStates.hpp>
 #include <etna/Profiling.hpp>
 #include <glm/ext.hpp>
+#include "imgui.h"
 #include "stb_image.h"
 
 #include <math.h>
@@ -60,9 +61,8 @@ void WorldRenderer::allocateResources(glm::uvec2 swapchain_resolution)
   });
 
   heightmap.initImage({4096, 4096});
-  for (std::size_t i = 0; i < 12; ++i)
-    heightmap.upscale(*ctx.createOneShotCmdMgr());
-
+  regenTerrain();
+  
   allocateGBuffer();
   loadSkybox();
 }
@@ -1381,4 +1381,35 @@ void WorldRenderer::renderSkybox(vk::CommandBuffer cmd_buf) {
 
     cmd_buf.draw(3, 1, 0, 0);
   }
+}
+
+void WorldRenderer::regenTerrain() {
+  heightmap.reset();
+  for (int i = 0; i < terrainScale; i++) {
+    heightmap.upscale(*etna::get_context().createOneShotCmdMgr());
+  }
+}
+
+void 
+WorldRenderer::drawGui()
+{
+  ImGui::Begin("Render settings");
+  {
+    if(ImGui::TreeNode("Terrain settings"))
+    {
+      ImGui::SliderInt("Terrain scale", &terrainScale, 1, 12);
+      if(ImGui::Button("Regenerate")) {
+        regenTerrain();
+      }
+      ImGui::Checkbox("Wireframe [F3]", &wireframe);
+      ImGui::TreePop();
+    }
+
+    if(ImGui::TreeNode("Postprocess settings"))
+    {
+      ImGui::Checkbox("Enable tonemap (WIP)", &useToneMap);
+      ImGui::TreePop();
+    }
+  }
+  ImGui::End();
 }

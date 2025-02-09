@@ -14,6 +14,10 @@ public:
     void initImage(vk::Extent2D extent);
 
     void upscale(etna::OneShotCmdMgr& cmd_mgr);
+    void reset() {
+        m_currentImage = 0;
+        m_frequency = 1;
+    }
 
     etna::Image& getImage() { return m_images[m_currentImage]; }
     etna::Sampler& getSampler() { return m_sampler; }

@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <function2/function2.hpp>
 
+#include "gui/ImGuiRenderer.hpp"
 #include "wsi/Keyboard.hpp"
 
 #include "FramePacket.hpp"
@@ -38,4 +39,5 @@ private:
   bool useVsync = true;
 
   std::unique_ptr<WorldRenderer> worldRenderer;
+  std::unique_ptr<ImGuiRenderer> guiRenderer;
 };

@@ -31,7 +31,9 @@ public:
 
   void debugInput(const Keyboard& kb);
   void update(const FramePacket& packet);
+  
   void drawGui();
+
   void renderWorld(
     vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view);
 private:
@@ -53,6 +55,8 @@ private:
   void prepareFrame(const glm::mat4x4& glob_tm);
 
   void tonemapEvaluate(vk::CommandBuffer cmd_buf);
+
+  void regenTerrain();
 public:
   PerlinGenerator heightmap;
 private:
@@ -91,8 +95,6 @@ private:
   glm::mat4x4 worldView;
   glm::mat4x4 worldProj;
   
-  glm::mat4x4 lightMatrix;
-
   etna::GraphicsPipeline staticMeshPipeline{};
   etna::GraphicsPipeline terrainPipeline{};
   etna::GraphicsPipeline terrainDebugPipeline{};
@@ -121,6 +123,7 @@ private:
   bool wireframe  = false;
   bool pause      = false;
   bool normalMap  = true;
+  int terrainScale = 12;
 
   double frameTime = 0.;
 };

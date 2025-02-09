@@ -19,6 +19,10 @@ App::App()
 
   renderer->initFrameDelivery(std::move(surface), [this]() { return mainWindow->getResolution(); });
 
+  // TODO: this is bad design, this initialization is dependent on the current ImGui context, but we
+  // pass it implicitly here instead of explicitly. Beware if trying to do something tricky.
+  ImGuiRenderer::enableImGuiForWindow(mainWindow->native());
+
   mainCam.lookAt({0, 10, 10}, {0, 0, 0}, {0, 1, 0});
 
   renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/lovely_town/scene.gltf");
