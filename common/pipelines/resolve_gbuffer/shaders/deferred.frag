@@ -23,6 +23,7 @@ layout(push_constant) uniform pc_t
     mat4 mView;
     vec4 position;
     vec4 color;
+    int pbr;
 } params;
 
 #include "pbr.glsl"
@@ -66,7 +67,11 @@ void main(void)
   const vec3 absPos = normalize(inverse(mat3(params.mView)) * pos);
   const vec3 reflection = texture(skybox, (absPos - 2 * absNormal * dot(absNormal, absPos))).rgb;
   //const vec3 reflection = texture(skybox, -absPos).rgb;
-  out_fragColor = getLight(lightPos, pos, normal, reflection, surfaceColor, mat);
+  if (params.pbr != 0) {
+    out_fragColor = getLight(lightPos, pos, normal, reflection, surfaceColor, mat);
+  } else {
+    out_fragColor.rgb = surfaceColor * max(0.05, dot(normalize(lightPos - pos), normal));
+  }
   gl_FragDepth = depthV;
 }
 

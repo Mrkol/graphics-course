@@ -22,6 +22,7 @@ layout(push_constant) uniform pc_t
     vec4 pos;
     vec4 color;
     float degree;
+    int pbr;
 } params;
 #include "pbr.glsl"
 
@@ -64,7 +65,11 @@ void main(void)
   const vec3 lightDir = pos - (params.mView * vec4(params.pos.xyz, 1)).xyz;
   const float dist = length(transpose(ipv3) * lightDir);
   if (dist < params.pos.w) {
-    out_fragColor.rgb = getLight(pos, normal, params.color.rgb, lightDir, surfaceColor, texture(material, texCoord)).rgb;
+      if (params.pbr != 0) {
+      out_fragColor.rgb = getLight(pos, normal, params.color.rgb, lightDir, surfaceColor, texture(material, texCoord)).rgb;
+    } else {
+      out_fragColor.rgb = surfaceColor * max(0., dot(-lightDir, normal)) * params.color.rgb;
+    }
     out_fragColor.a = max(sin(3.14 * (1 - dist / params.pos.w) / 2), 0);
   }
 }

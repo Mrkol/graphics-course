@@ -147,9 +147,11 @@ ResolveGBufferPipeline::setup()
 void 
 ResolveGBufferPipeline::drawGui()
 {
-    if(ImGui::TreeNode("resolvegbuffer")) {
-        ImGui::TreePop();
-    }
+  ImGui::Checkbox("Use pbr", &usePbr);
+  ImGui::Checkbox("Enable secondary lighting", &secondaryLight);
+  ImGui::Checkbox("Enable secondary lighting sources", &secondaryLightSources);
+
+  ImGui::Checkbox("Normal as color[WIP]", &normalAsAlbedo);
 }
 
 void 
@@ -190,7 +192,7 @@ ResolveGBufferPipeline::render(vk::CommandBuffer cmd_buf, targets::GBuffer& sour
     );
 
     LightSource::Id sunId = static_cast<LightSource::Id>(0);
-    struct {glm::mat4x4 p, v; glm::vec4 pos, color;} pushConstants{ctx.worldProj, ctx.worldView, ctx.sceneMgr->getLights()[sunId].position, ctx.sceneMgr->getLights()[sunId].colorRange};
+    struct {glm::mat4x4 p, v; glm::vec4 pos, color; int pbr;} pushConstants{ctx.worldProj, ctx.worldView, ctx.sceneMgr->getLights()[sunId].position, ctx.sceneMgr->getLights()[sunId].colorRange, usePbr ? 1 : 0};
 
     cmd_buf.pushConstants(
       pipeline.getVkPipelineLayout(), 
@@ -202,8 +204,11 @@ ResolveGBufferPipeline::render(vk::CommandBuffer cmd_buf, targets::GBuffer& sour
 
     cmd_buf.draw(3, 1, 0, 0);
   }
-  renderSphereDeferred(cmd_buf, source, ctx);
-  renderSphere(cmd_buf, ctx);
+  if(secondaryLight)
+    renderSphereDeferred(cmd_buf, source, ctx);
+
+  if(secondaryLightSources)
+    renderSphere(cmd_buf, ctx);
 }
 
 
@@ -243,7 +248,7 @@ void ResolveGBufferPipeline::renderSphereDeferred(vk::CommandBuffer cmd_buf, tar
       continue;
     }
     n = std::min(n, 128u);
-    struct {glm::mat4x4 pv, v; glm::vec4 pos, color; float degree;} pushConstants{ctx.worldProj, ctx.worldView, light.position, light.colorRange, M_PIf / n};
+    struct {glm::mat4x4 pv, v; glm::vec4 pos, color; float degree; int pbr;} pushConstants{ctx.worldProj, ctx.worldView, light.position, light.colorRange, M_PIf / n, usePbr ? 1 : 0};
     pushConstants.pos += light.floatingAmplitude * glm::sin(light.floatingSpeed * static_cast<float>(ctx.frameTime));
     pushConstants.pos.w = light.position.w;
     cmd_buf.pushConstants(

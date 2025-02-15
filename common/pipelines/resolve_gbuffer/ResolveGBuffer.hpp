@@ -40,6 +40,12 @@ private:
   etna::GraphicsPipeline sphereDeferredPipeline{};
   etna::GraphicsPipeline spherePipeline{};
   etna::Sampler defaultSampler;
+
+  bool usePbr = true;
+  bool secondaryLight        = true;
+  bool secondaryLightSources = true;
+
+  bool normalAsAlbedo = false;
 };
 
 }
