@@ -48,7 +48,6 @@ vec4 getLight(vec3 lightPos, vec3 pos, vec3 normal, vec3 lightColor, vec3 surfac
 void main(void)
 {
   const vec3 surfaceColor = texture(albedo, surf.texCoord).rgb;
-
   const vec4 normal_wc = texture(normal, surf.texCoord);
   const mat3 iv3 = transpose(inverse(mat3(params.mView)));
   vec3 normal = normal_wc.xyz;
@@ -68,5 +67,6 @@ void main(void)
   const vec3 reflection = texture(skybox, (absPos - 2 * absNormal * dot(absNormal, absPos))).rgb;
   //const vec3 reflection = texture(skybox, -absPos).rgb;
   out_fragColor = getLight(lightPos, pos, normal, reflection, surfaceColor, mat);
+  gl_FragDepth = depthV;
 }
 

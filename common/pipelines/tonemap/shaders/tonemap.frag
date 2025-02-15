@@ -29,5 +29,6 @@ vec3 tonemap(vec3 color)
 void main(void)
 {
   vec4 color = texture(image, surf.texCoord);
-  out_fragColor = vec4(tonemap(color.rgb), 1);
+  //out_fragColor = vec4(tonemap(color.rgb), 1);
+  out_fragColor = vec4(color.rgb, 1);
 }

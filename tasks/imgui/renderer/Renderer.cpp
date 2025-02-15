@@ -87,10 +87,10 @@ void Renderer::debugInput(const Keyboard& kb)
     }
   }
 
-  if (kb[KeyboardKey::kU] == ButtonState::Falling)
-  {
-    worldRenderer->heightmap.upscale(*etna::get_context().createOneShotCmdMgr());
-  }
+  // if (kb[KeyboardKey::kU] == ButtonState::Falling)
+  // {
+  //   worldRenderer->heightmap.upscale(*etna::get_context().createOneShotCmdMgr());
+  // }
 }
 
 void Renderer::update(const FramePacket& packet)

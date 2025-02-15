@@ -56,7 +56,7 @@ public:
   vk::Buffer getIndexBuffer() { return unifiedIbuf.get(); }
   
 
-  etna::VertexByteStreamFormatDescription getVertexFormatDescription();
+  static etna::VertexByteStreamFormatDescription getVertexFormatDescription();
 
   const auto& getLights() const { return lightSources; }
 

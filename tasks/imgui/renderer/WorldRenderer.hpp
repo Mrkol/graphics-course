@@ -7,7 +7,9 @@
 #include <etna/RenderTargetStates.hpp>
 #include <glm/glm.hpp>
 
-#include "Perlin.hpp"
+#include "pipelines/Pipelines.hpp"
+#include "targets/Backbuffer.hpp"
+#include "targets/GBuffer.hpp"
 #include "scene/SceneManager.hpp"
 #include "wsi/Keyboard.hpp"
 
@@ -36,15 +38,12 @@ public:
 
   void renderWorld(
     vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view);
-private:
-  void renderTerrain(
-    vk::CommandBuffer cmd_buf);
-  
-  void renderScene(
-    vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout);
 
   void renderPostprocess(
     vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view);
+private:
+  void renderScene(
+    vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout);
 
   void renderSkybox(vk::CommandBuffer cmd_buf);
   void renderLights(vk::CommandBuffer cmd_buf);
@@ -54,16 +53,11 @@ private:
 
   void prepareFrame(const glm::mat4x4& glob_tm);
 
-  void tonemapEvaluate(vk::CommandBuffer cmd_buf);
-
   void regenTerrain();
 public:
-  PerlinGenerator heightmap;
-private:
+
+  private:
   std::unique_ptr<SceneManager> sceneMgr;
-
-
-  etna::Image backbuffer;
 
   std::array<etna::Image, 5> gBuffer;
   std::vector<etna::RenderTargetState::AttachmentParams> gBufferColorAttachments;
@@ -71,43 +65,21 @@ private:
 
   etna::Buffer constants;
 
-  etna::Buffer histogramBuffer;
-  etna::Buffer distributionBuffer;
 
-  etna::Buffer instanceMatricesBuf;
-
-  struct PushConstants
-  {
-    glm::mat4x4 projView;
-    glm::mat4x4 model;
-    glm::vec4 color, emr_factors;
-    glm::uint  instIdx;
-  } pushConst2M;
-
-   struct TerrainPushContants {
-    glm::vec2 base, extent;
-    glm::mat4x4 mat; 
-    glm::vec3 camPos;
-    int degree;
-  } pushConstantsTerrain;
-
-  glm::mat4x4 worldViewProj;
-  glm::mat4x4 worldView;
-  glm::mat4x4 worldProj;
   
-  etna::GraphicsPipeline staticMeshPipeline{};
-  etna::GraphicsPipeline terrainPipeline{};
-  etna::GraphicsPipeline terrainDebugPipeline{};
+  pipes::TerrainPipeline    terrainPipeline2{};
+  pipes::StaticMeshPipeline staticMeshPipeline2{};
+  
+  pipes::SkyboxPipeline         skyboxPipeline2{};
+  pipes::ResolveGBufferPipeline resolveGPipeline2{};
 
-  etna::ComputePipeline histogramPipeline{};
-  etna::ComputePipeline distributionPipeline{};
+  pipes::TonemapPipeline tonemapPipeline2{};
+  
+  pipes::RenderContext renderContext{};
 
-  etna::GraphicsPipeline skyboxPipeline{};
-  etna::GraphicsPipeline deferredLightPipeline{};
-  etna::GraphicsPipeline sphereDeferredPipeline{};
-  etna::GraphicsPipeline spherePipeline{};
+  targets::Backbuffer backbuffer2{};
+  targets::GBuffer gbuffer2{};
 
-  etna::GraphicsPipeline postprocessPipeline{};
   etna::Sampler defaultSampler;
   glm::uvec2 resolution;
 
@@ -117,13 +89,8 @@ private:
     RenderElement re;
     std::size_t amount;
   };
-  std::vector<std::size_t> nInstances;
 
-  bool useToneMap = false;
-  bool wireframe  = false;
-  bool pause      = false;
-  bool normalMap  = true;
-  int terrainScale = 12;
+  bool pause = false;
 
-  double frameTime = 0.;
+  
 };
