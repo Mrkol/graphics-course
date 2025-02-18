@@ -16,6 +16,11 @@
 
 namespace pipes {
 
+struct MaterialIdParam {
+  int param;
+  int pad[3];
+};
+
 void 
 StaticMeshPipeline::allocate()
 {
@@ -28,11 +33,28 @@ StaticMeshPipeline::allocate()
     });
     instanceMatricesBuf.map();
 
+   
+
     defaultSampler = etna::Sampler({
       .filter = vk::Filter::eLinear,
       .name = "staticMeshSampler",
     });
 }
+
+void 
+StaticMeshPipeline::reserve(std::size_t n)
+{
+  nInstances.assign(n, 0);
+  auto& ctx = etna::get_context();
+  relemMaterialsBuf = ctx.createBuffer({
+    .size = n * sizeof(MaterialIdParam),
+    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer,
+    .memoryUsage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+    .name = "relemMaterialsBuffer",
+  });
+  relemMaterialsBuf.map();
+}
+
 
 void 
 StaticMeshPipeline::loadShaders() 
@@ -134,6 +156,7 @@ StaticMeshPipeline::render(vk::CommandBuffer cmd_buf, targets::GBuffer& target, 
     return target;
 
   prepareFrame(ctx);
+  prepareTextures(ctx, cmd_buf);
 
   auto staticMesh = etna::get_shader_program("staticmesh_shader");
 
@@ -148,6 +171,12 @@ StaticMeshPipeline::render(vk::CommandBuffer cmd_buf, targets::GBuffer& target, 
   {
     etna::Binding{0, instanceMatricesBuf.genBinding()},
   });
+  auto set1 = etna::create_descriptor_set(
+    staticMesh.getDescriptorLayoutId(1),
+    cmd_buf,
+    {
+      etna::Binding{0, relemMaterialsBuf.genBinding()},
+    });
   auto relems = ctx.sceneMgr->getRenderElements();
   std::size_t firstInstance = 0;
   for (std::size_t j = 0; j < relems.size(); ++j)
@@ -159,26 +188,18 @@ StaticMeshPipeline::render(vk::CommandBuffer cmd_buf, targets::GBuffer& target, 
     }  
     if (nInstances[j] != 0)
     {
-      Material::Id mid = relems[j].materialId;
-      auto& material = ctx.sceneMgr->get(mid == Material::Id::Invalid ? ctx.sceneMgr->getStubMaterial() : relems[j].materialId);
-      auto& baseColorImage = ctx.sceneMgr->get(material.baseColorTexture).image;
-      auto& normalImage = normalMap ? ctx.sceneMgr->get(material.normalTexture).image : ctx.sceneMgr->get(ctx.sceneMgr->getStubBlueTexture()).image;
-      auto& metallicRoughnessImage = normalMap ? ctx.sceneMgr->get(material.metallicRoughnessTexture).image : ctx.sceneMgr->get(ctx.sceneMgr->getStubTexture()).image;
-      auto set1 = etna::create_descriptor_set(
-        staticMesh.getDescriptorLayoutId(1),
-        cmd_buf,
-        {
-          etna::Binding{0, baseColorImage        .genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-          etna::Binding{1, normalImage           .genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-          etna::Binding{2, metallicRoughnessImage.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)},
-        });
+      auto* relemMaterials = reinterpret_cast<MaterialIdParam*>(relemMaterialsBuf.data());
+      auto material = ctx.sceneMgr->get(static_cast<Material::Id>(relemMaterials[j].param)); 
       pushConst2M.color = material.baseColor;
       pushConst2M.emr_factors = material.EMR_Factor;
+      pushConst2M.relemIdx = j;
+      pushConst2M.material = relemMaterials[j].param;
+
       cmd_buf.bindDescriptorSets(
         vk::PipelineBindPoint::eGraphics,
         pipeline.getVkPipelineLayout(),
         0,
-        {set0.getVkSet(), set1.getVkSet()},
+        {set0.getVkSet(), set1.getVkSet(), set2.getVkSet()},
         {});
 
       const auto& relem = relems[j];
@@ -245,6 +266,42 @@ StaticMeshPipeline::prepareFrame(const RenderContext& ctx)
       *matrices++ = instanceMatrix;
     }
   }
+}
+
+void 
+StaticMeshPipeline::prepareTextures(const RenderContext& ctx, vk::CommandBuffer cmd_buf)
+{
+  auto relems = ctx.sceneMgr->getRenderElements();
+  auto* relemMaterials = reinterpret_cast<MaterialIdParam*>(relemMaterialsBuf.data());
+  int maxMaterial = 0;
+  for (std::size_t j = 0; j < relems.size(); ++j)
+  {
+    Material::Id mid = relems[j].materialId;
+    if(mid == Material::Id::Invalid) {
+      mid = ctx.sceneMgr->getStubMaterial();
+    }
+    relemMaterials[j].param = static_cast<int>(mid);
+    maxMaterial = std::max(maxMaterial, relemMaterials[j].param);
+  }
+  std::vector<etna::ImageBinding> bindings;
+  bindings.reserve(maxMaterial * 3);
+  for(int i = 0; i < maxMaterial; ++i) {
+    Material material = ctx.sceneMgr->get(static_cast<Material::Id>(i)); 
+    auto& baseColorImage = ctx.sceneMgr->get(material.baseColorTexture).image;
+    auto& normalImage = normalMap ? ctx.sceneMgr->get(material.normalTexture).image : ctx.sceneMgr->get(ctx.sceneMgr->getStubBlueTexture()).image;
+    auto& metallicRoughnessImage = normalMap ? ctx.sceneMgr->get(material.metallicRoughnessTexture).image : ctx.sceneMgr->get(ctx.sceneMgr->getStubTexture()).image;
+    bindings.emplace_back(baseColorImage        .genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal));
+    bindings.emplace_back(normalImage           .genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal));
+    bindings.emplace_back(metallicRoughnessImage.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal));
+  }
+  
+  auto staticMesh = etna::get_shader_program("staticmesh_shader");
+  set2 = etna::create_descriptor_set(
+    staticMesh.getDescriptorLayoutId(2),
+    cmd_buf, 
+    {etna::Binding{0, std::move(bindings)}},
+    BarrierBehavoir::eSuppressBarriers
+  );
 }
 
 } /* namespace pipes */

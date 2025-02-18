@@ -1,5 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_nonuniform_qualifier : require
 #extension GL_GOOGLE_include_directive : require
 
 #include "unpack_attributes.glsl"
@@ -16,6 +17,7 @@ layout(push_constant) uniform params_t
   vec4 color;
   vec4 emr_;
   uint relemIdx;
+  uint material;
 } params;
 
 
@@ -31,8 +33,12 @@ layout (location = 0 ) out VS_OUT
 layout (std140, set = 0, binding = 0) readonly buffer ims_t {
   mat4 mModels[]; 
 } ims;
-layout(set = 1, binding = 0) uniform sampler2D baseColorTexture;
-layout(set = 1, binding = 1) uniform sampler2D    normalTexture;
+
+layout (std140, set = 1, binding = 0) readonly buffer matt_t {
+  int mMaterialId[]; 
+} materials;
+
+//layout(set = 2, binding = 0) uniform sampler2D materialTextures[];
 
 out gl_PerVertex { vec4 gl_Position; };
 

@@ -24,13 +24,18 @@ void Renderer::initVulkan(std::span<const char*> instance_extensions)
   std::vector<const char*> deviceExtensions;
 
   deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+  deviceExtensions.push_back(VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME);
+  vk::PhysicalDeviceFeatures2 features{.features = {.tessellationShader=1, .fillModeNonSolid=1}};
+
+  vk::PhysicalDeviceVulkan12Features features12{.descriptorIndexing=1, .shaderSampledImageArrayNonUniformIndexing=1,.runtimeDescriptorArray=1,};
+  features.setPNext(&features12);
 
   etna::initialize(etna::InitParams{
-    .applicationName = "model_bakery_renderer",
+    .applicationName = "bindless_renderer",
     .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
     .instanceExtensions = instanceExtensions,
     .deviceExtensions = deviceExtensions,
-    .features = vk::PhysicalDeviceFeatures2{.features = {.tessellationShader=1, .fillModeNonSolid=1}},
+    .features = features,
     .physicalDeviceIndexOverride = {},
     .numFramesInFlight = 1,
   });

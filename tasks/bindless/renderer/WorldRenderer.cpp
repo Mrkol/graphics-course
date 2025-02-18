@@ -296,6 +296,11 @@ WorldRenderer::drawGui()
       staticMeshPipeline2.drawGui();
       ImGui::TreePop();
     }
+    if(ImGui::TreeNode("Lightning  settings"))
+    {
+      resolveGPipeline2.drawGui();
+      ImGui::TreePop();
+    }
     
     if(ImGui::TreeNode("tonemap")) {
       tonemapPipeline2.drawGui();
