@@ -1,5 +1,7 @@
 #pragma once
 
+#include <etna/Sampler.hpp>
+#include <etna/GlobalContext.hpp>
 #include <etna/Window.hpp>
 #include <etna/PerFrameCmdMgr.hpp>
 #include <etna/ComputePipeline.hpp>
@@ -26,6 +28,13 @@ private:
   glm::uvec2 resolution;
   bool useVsync;
 
+  etna::Image mainImage;
+  etna::Sampler sampler;
+
+  etna::ComputePipeline computePipeline;
+
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
+
+  long long startTime;
 };

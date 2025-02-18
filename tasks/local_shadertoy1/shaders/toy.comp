@@ -1,18 +1,178 @@
 #version 430
 
-layout(local_size_x = 32, local_size_y = 32) in;
+layout(local_size_x = 32, local_size_y = 16) in;
 
 layout(binding = 0, rgba8) uniform image2D resultImage;
+
+layout(push_constant) uniform params_t
+{
+  float iTime;
+} params;
+
+vec2 iResolution = vec2(1280, 720);
+vec3 LIGHT_POS = vec3(0, 0, -100.0);
+float LIGHT_POW = 10000.0;
+
+struct sphr {
+    vec3 center;
+    float radius;
+    vec3 color;
+};
+
+
+sphr bodies[3] = sphr[](
+    sphr(vec3(0, 0, 0), 2.0, vec3(1.0, 1.0, 0.0)),
+    sphr(vec3(0, 0, 0), 0.7, vec3(0.0, 0.5, 1.0)),
+    sphr(vec3(0, 0, 0), 0.2, vec3(0.5, 0.5, 0.5))
+);
+
+
+float sdf(in vec3 point) {
+    float result = 10000.0;
+    for (int i = 0; i < 3; ++i) {
+        float dist = length(point - bodies[i].center) - bodies[i].radius;
+        result = min(dist, result);
+    }
+    return result;
+}
+
+
+vec3 base_color(in vec3 point) {
+    vec3 result = bodies[0].color;
+    float min_dist = length(point - bodies[0].center) - bodies[0].radius;
+    for (int i = 1; i < 3; ++i) {
+        float dist = length(point - bodies[i].center) - bodies[i].radius;
+        if (dist < min_dist) {
+            result = bodies[i].color;
+            min_dist = dist;
+        }
+    }
+    return result;
+}
+
+
+void castRay(in vec3 direction, in vec3 origin, out vec3 hitPoint, out bool rayDidHit) {
+    vec3 currentPos = origin;
+
+    for (int i = 0; true; i++) {
+        float stepSize = abs(sdf(currentPos));
+
+        if (stepSize < 0.01) {
+            hitPoint = currentPos;
+            rayDidHit = true;
+            return;
+        } else if (stepSize > 100.0) {
+            rayDidHit = false;
+            return;
+        } else {
+            currentPos += direction * stepSize;
+        }
+    }
+
+    rayDidHit = false;
+    return;
+}
+
+
+vec3 computeGradient(in vec3 pos, in float epsilon) {
+    float refValue = sdf(pos);
+
+    vec3 shiftX = vec3(epsilon, 0.0, 0.0);
+    vec3 shiftY = vec3(0.0, epsilon, 0.0);
+    vec3 shiftZ = vec3(0.0, 0.0, epsilon);
+
+    vec3 sampledValues = vec3(
+        sdf(pos + shiftX),
+        sdf(pos + shiftY),
+        sdf(pos + shiftZ)
+    );
+
+    return (sampledValues - refValue) / epsilon;
+}
+
+
+vec3 computeLighting(in vec3 pos, out vec3 norm, out vec3 lightVec, out float intensity) {
+    norm = normalize(computeGradient(pos, 0.0001));
+    lightVec = LIGHT_POS - pos;
+    intensity = LIGHT_POW / pow(length(lightVec), 2.0);
+    return normalize(lightVec);
+}
+
+
+vec3 scatteredLight(in vec3 location, in vec3 baseCol) {
+    vec3 normDir, lightVector;
+    float lightInt;
+    vec3 lightUnit = computeLighting(location, normDir, lightVector, lightInt);
+
+    vec3 finalDiffuse = baseCol * max(dot(normDir, lightUnit), 0.0) * lightInt;
+    return finalDiffuse;
+}
+
+
+vec3 reflectedLight(in vec3 viewPos, in vec3 hitPos, in vec3 baseCol) {
+    vec3 normDir, lightVector;
+    float lightInt;
+    vec3 lightUnit = computeLighting(hitPos, normDir, lightVector, lightInt);
+
+    vec3 eyeVector = normalize(viewPos - hitPos);
+    vec3 reflectedRay = -reflect(lightVector, normDir);
+
+    float specFactor = pow(max(dot(eyeVector, normalize(reflectedRay)), 0.0), 20.0);
+    return vec3(specFactor * lightInt);
+}
+
+
+void simulate_planet_rotation() {
+    // Sun remains stationary at the origin
+    bodies[0].center = vec3(0.0, 0.0, 10.0);
+
+    // Earth orbits the Sun
+    float earth_orbit_radius = 5.0; // Distance from the Sun
+    float earth_orbit_speed = 1.5;  // Speed of Earth's orbit
+    float earth_angle = params.iTime * earth_orbit_speed;
+    bodies[1].center = bodies[0].center + vec3(cos(earth_angle) * earth_orbit_radius, sin(earth_angle) * earth_orbit_radius, 0.0);
+
+    // Moon orbits the Earth
+    float moon_orbit_radius = 1.5; // Distance from the Earth
+    float moon_orbit_speed = earth_orbit_speed * 365.0 / 28.0;  // Speed of Moon's orbit
+    float moon_angle = params.iTime * moon_orbit_speed;
+    bodies[2].center = bodies[1].center + vec3(cos(moon_angle) * moon_orbit_radius, sin(moon_angle) * moon_orbit_radius, 0.0);
+}
+
+
+void processRay(in vec3 camPos, in vec3 direction, out vec3 hitPoint, out vec3 finalColor) {
+    finalColor = vec3(0.0);
+    bool rayDidHit;
+    castRay(direction, camPos, hitPoint, rayDidHit);
+    if (rayDidHit) {
+        vec3 baseCol = base_color(hitPoint);
+        finalColor = reflectedLight(camPos, hitPoint, baseCol) + scatteredLight(hitPoint, baseCol);
+    }
+}
+
+
+void mainImage(out vec4 pixelColor, in vec2 pixelCoord) {
+    simulate_planet_rotation();
+
+    vec2 normCoord = (pixelCoord - iResolution.xy * 0.5) / min(iResolution.x, iResolution.y);
+
+    vec3 eye = vec3(0.0, 0.0, -1.0);
+    vec3 direction = normalize(vec3(normCoord, 0.0) - eye);
+
+    vec3 impactPoint, computedColor;
+    processRay(eye, direction, impactPoint, computedColor);
+
+    pixelColor = vec4(computedColor, 1.0);
+}
 
 
 void main()
 {
-  ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
+  ivec2 uv = ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y);
 
-  // TODO: Put your shadertoy code here!
-  // Simple gradient as a test.
-  vec3 color = vec3(vec2(uv) / vec2(1280, 720), 0);
+  vec4 color;
+  mainImage(color, uv * ivec2(1, -1) + ivec2(0, iResolution.y));
 
   if (uv.x < 1280 && uv.y < 720)
-    imageStore(resultImage, uv, vec4(color, 1));
+    imageStore(resultImage, uv, color);
 }
