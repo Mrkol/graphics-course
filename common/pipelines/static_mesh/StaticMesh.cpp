@@ -33,7 +33,13 @@ StaticMeshPipeline::allocate()
     });
     instanceMatricesBuf.map();
 
-   
+    materialParamsBuf = ctx.createBuffer({
+      .size = 40 * 2 * sizeof(glm::vec4), //FIXME: 
+      .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eUniformBuffer,
+      .memoryUsage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+      .name = "relemMaterialsParams",
+    });
+    materialParamsBuf.map();
 
     defaultSampler = etna::Sampler({
       .filter = vk::Filter::eLinear,
@@ -53,6 +59,15 @@ StaticMeshPipeline::reserve(std::size_t n)
     .name = "relemMaterialsBuffer",
   });
   relemMaterialsBuf.map();
+
+  drawCommandsBuf = ctx.createBuffer({
+    .size = n * sizeof(vk::DrawIndexedIndirectCommand),
+    .bufferUsage = vk::BufferUsageFlagBits::eIndirectBuffer,
+    .memoryUsage = VMA_MEMORY_USAGE_CPU_TO_GPU,
+    .name = "drawCommandsBuf",
+  });
+  drawCommandsBuf.map();
+  std::memset(drawCommandsBuf.data(), 0, n * sizeof(vk::DrawIndexedIndirectCommand));
 }
 
 
@@ -177,8 +192,15 @@ StaticMeshPipeline::render(vk::CommandBuffer cmd_buf, targets::GBuffer& target, 
     {
       etna::Binding{0, relemMaterialsBuf.genBinding()},
     });
+  auto set3 = etna::create_descriptor_set(
+    staticMesh.getDescriptorLayoutId(3),
+    cmd_buf,
+    {
+      etna::Binding{0, materialParamsBuf.genBinding()},
+    });
   auto relems = ctx.sceneMgr->getRenderElements();
   std::size_t firstInstance = 0;
+  auto* commands = reinterpret_cast<vk::DrawIndexedIndirectCommand* >(drawCommandsBuf.data());
   for (std::size_t j = 0; j < relems.size(); ++j)
   {
     //Skip drawing water as it is rendered by terrain
@@ -188,29 +210,30 @@ StaticMeshPipeline::render(vk::CommandBuffer cmd_buf, targets::GBuffer& target, 
     }  
     if (nInstances[j] != 0)
     {
-      auto* relemMaterials = reinterpret_cast<MaterialIdParam*>(relemMaterialsBuf.data());
-      auto material = ctx.sceneMgr->get(static_cast<Material::Id>(relemMaterials[j].param)); 
-      pushConst2M.color = material.baseColor;
-      pushConst2M.emr_factors = material.EMR_Factor;
       pushConst2M.relemIdx = j;
-      pushConst2M.material = relemMaterials[j].param;
-
-      cmd_buf.bindDescriptorSets(
-        vk::PipelineBindPoint::eGraphics,
-        pipeline.getVkPipelineLayout(),
-        0,
-        {set0.getVkSet(), set1.getVkSet(), set2.getVkSet()},
-        {});
-
+      // cmd_buf.drawIndexed(
+      //   relem.indexCount, nInstances[j], relem.indexOffset, relem.vertexOffset, firstInstance);
       const auto& relem = relems[j];
-      cmd_buf.pushConstants<PushConstants>(
-        pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, {pushConst2M});
-      cmd_buf.drawIndexed(
-        relem.indexCount, nInstances[j], relem.indexOffset, relem.vertexOffset, firstInstance);
+      commands[j].setIndexCount(relem.indexCount);
+      commands[j].setInstanceCount(nInstances[j]);
+      commands[j].setFirstIndex(relem.indexOffset);
+      commands[j].setVertexOffset(relem.vertexOffset);
+      commands[j].setFirstInstance(firstInstance);
+
       firstInstance += nInstances[j];
     }
   }
-    return target;
+  cmd_buf.bindDescriptorSets(
+    vk::PipelineBindPoint::eGraphics,
+    pipeline.getVkPipelineLayout(),
+    0,
+    {set0.getVkSet(), set1.getVkSet(), set2.getVkSet(), set3.getVkSet()},
+    {});
+
+  cmd_buf.pushConstants<PushConstants>(
+    pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment, 0, {pushConst2M});
+  cmd_buf.drawIndexedIndirect(drawCommandsBuf.get(), 0, relems.size(), static_cast<uint32_t>(sizeof(vk::DrawIndexedIndirectCommand)));
+  return target;
 }
 
 static bool 
@@ -273,6 +296,7 @@ StaticMeshPipeline::prepareTextures(const RenderContext& ctx, vk::CommandBuffer 
 {
   auto relems = ctx.sceneMgr->getRenderElements();
   auto* relemMaterials = reinterpret_cast<MaterialIdParam*>(relemMaterialsBuf.data());
+  auto* materialsParams = reinterpret_cast<glm::vec4*>(materialParamsBuf.data());
   int maxMaterial = 0;
   for (std::size_t j = 0; j < relems.size(); ++j)
   {
@@ -287,6 +311,8 @@ StaticMeshPipeline::prepareTextures(const RenderContext& ctx, vk::CommandBuffer 
   bindings.reserve(maxMaterial * 3);
   for(int i = 0; i < maxMaterial; ++i) {
     Material material = ctx.sceneMgr->get(static_cast<Material::Id>(i)); 
+    materialsParams[2*i + 0] = material.baseColor;
+    materialsParams[2*i + 1] = material.EMR_Factor;
     auto& baseColorImage = ctx.sceneMgr->get(material.baseColorTexture).image;
     auto& normalImage = normalMap ? ctx.sceneMgr->get(material.normalTexture).image : ctx.sceneMgr->get(ctx.sceneMgr->getStubBlueTexture()).image;
     auto& metallicRoughnessImage = normalMap ? ctx.sceneMgr->get(material.metallicRoughnessTexture).image : ctx.sceneMgr->get(ctx.sceneMgr->getStubTexture()).image;

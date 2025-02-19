@@ -43,14 +43,13 @@ private:
     etna::GraphicsPipeline pipeline;
     etna::Buffer instanceMatricesBuf;
     etna::Buffer relemMaterialsBuf;
+    etna::Buffer materialParamsBuf;
+    etna::Buffer drawCommandsBuf;
     etna::Sampler defaultSampler;
     struct PushConstants
     {
         glm::mat4x4 projView;
-        glm::mat4x4 model;
-        glm::vec4 color, emr_factors;
-        glm::uint  relemIdx;
-        glm::uint  material;
+        int relemIdx;
     } pushConst2M;
 
     std::vector<std::size_t> nInstances;

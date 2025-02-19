@@ -1,5 +1,6 @@
-#version 450
+#version 460
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shader_draw_parameters : require
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_GOOGLE_include_directive : require
 
@@ -13,11 +14,7 @@ layout(location = 2) in vec4 vNormTexCoord;
 layout(push_constant) uniform params_t
 {
   mat4 mProjView;
-  mat4 mModel;
-  vec4 color;
-  vec4 emr_;
   uint relemIdx;
-  uint material;
 } params;
 
 
@@ -28,6 +25,7 @@ layout (location = 0 ) out VS_OUT
   vec4 wTangent;
   vec2 texCoord;
   vec2 normTexCoord;
+  flat int material;
 } vOut;
 
 layout (std140, set = 0, binding = 0) readonly buffer ims_t {
@@ -56,6 +54,7 @@ void main(void)
   vOut.wTangent.w = 0;
   vOut.texCoord = vTexCoordAndTang.xy;
   vOut.normTexCoord = vNormTexCoord.xy;
-
+  //vOut.material = materials.mMaterialId[nonuniformEXT(gl_DrawID)];
   gl_Position   = params.mProjView * vec4(vOut.wPos, 1.0);
+  vOut.material = gl_DrawID;
 }
