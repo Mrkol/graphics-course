@@ -1,29 +1,22 @@
 #include "SceneManager.hpp"
-
 #include <stack>
-
 #include <spdlog/spdlog.h>
 #include <fmt/std.h>
 #include <glm/ext/matrix_transform.hpp>
 #include <glm/gtc/quaternion.hpp>
 #include <etna/GlobalContext.hpp>
 #include <etna/OneShotCmdMgr.hpp>
-
-
 SceneManager::SceneManager()
   : oneShotCommands{etna::get_context().createOneShotCmdMgr()}
   , transferHelper{etna::BlockingTransferHelper::CreateInfo{.stagingSize = 4096 * 4096 * 4}}
 {
 }
-
 std::optional<tinygltf::Model> SceneManager::loadModel(std::filesystem::path path)
 {
   tinygltf::Model model;
-
   std::string error;
   std::string warning;
   bool success = false;
-
   auto ext = path.extension();
   if (ext == ".gltf")
     success = loader.LoadASCIIFromFile(&model, &error, &warning, path.string());
@@ -34,7 +27,6 @@ std::optional<tinygltf::Model> SceneManager::loadModel(std::filesystem::path pat
     spdlog::error("glTF: Unknown glTF file extension: '{}'. Expected .gltf or .glb.", ext);
     return std::nullopt;
   }
-
   if (!success)
   {
     spdlog::error("glTF: Failed to load model!");
@@ -42,26 +34,20 @@ std::optional<tinygltf::Model> SceneManager::loadModel(std::filesystem::path pat
       spdlog::error("glTF: {}", error);
     return std::nullopt;
   }
-
   if (!warning.empty())
     spdlog::warn("glTF: {}", warning);
-
   if (
     !model.extensions.empty() || !model.extensionsRequired.empty() || !model.extensionsUsed.empty())
     spdlog::warn("glTF: No glTF extensions are currently implemented!");
-
   return model;
 }
-
 SceneManager::ProcessedInstances SceneManager::processInstances(const tinygltf::Model& model) const
 {
   std::vector nodeTransforms(model.nodes.size(), glm::identity<glm::mat4x4>());
-
   for (std::size_t nodeIdx = 0; nodeIdx < model.nodes.size(); ++nodeIdx)
   {
     const auto& node = model.nodes[nodeIdx];
     auto& transform = nodeTransforms[nodeIdx];
-
     if (!node.matrix.empty())
     {
       for (int i = 0; i < 4; ++i)
@@ -77,14 +63,12 @@ SceneManager::ProcessedInstances SceneManager::processInstances(const tinygltf::
             static_cast<float>(node.scale[0]),
             static_cast<float>(node.scale[1]),
             static_cast<float>(node.scale[2])));
-
       if (!node.rotation.empty())
         transform *= mat4_cast(glm::quat(
           static_cast<float>(node.rotation[3]),
           static_cast<float>(node.rotation[0]),
           static_cast<float>(node.rotation[1]),
           static_cast<float>(node.rotation[2])));
-
       if (!node.translation.empty())
         transform = translate(
           transform,
@@ -94,25 +78,20 @@ SceneManager::ProcessedInstances SceneManager::processInstances(const tinygltf::
             static_cast<float>(node.translation[2])));
     }
   }
-
   std::stack<std::size_t> vertices;
   for (auto vert : model.scenes[model.defaultScene].nodes)
     vertices.push(vert);
-
   while (!vertices.empty())
   {
     auto vert = vertices.top();
     vertices.pop();
-
     for (auto child : model.nodes[vert].children)
     {
       nodeTransforms[child] = nodeTransforms[vert] * nodeTransforms[child];
       vertices.push(child);
     }
   }
-
   ProcessedInstances result;
-
   // Don't overallocate matrices, they are pretty chonky.
   {
     std::size_t totalNodesWithMeshes = 0;
@@ -122,38 +101,30 @@ SceneManager::ProcessedInstances SceneManager::processInstances(const tinygltf::
     result.matrices.reserve(totalNodesWithMeshes);
     result.meshes.reserve(totalNodesWithMeshes);
   }
-
   for (std::size_t i = 0; i < model.nodes.size(); ++i)
     if (model.nodes[i].mesh >= 0)
     {
       result.matrices.push_back(nodeTransforms[i]);
       result.meshes.push_back(model.nodes[i].mesh);
     }
-
   return result;
 }
-
 static std::uint32_t encode_normal(glm::vec3 normal)
 {
   const std::int32_t x = static_cast<std::int32_t>(normal.x * 32767.0f);
   const std::int32_t y = static_cast<std::int32_t>(normal.y * 32767.0f);
-
   const std::uint32_t sign = normal.z >= 0 ? 0 : 1;
   const std::uint32_t sx = static_cast<std::uint32_t>(x & 0xfffe) | sign;
   const std::uint32_t sy = static_cast<std::uint32_t>(y & 0xffff) << 16;
-
   return sx | sy;
 }
-
 SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model& model) const
 {
   // NOTE: glTF assets can have pretty wonky data layouts which are not appropriate
   // for real-time rendering, so we have to press the data first. In serious engines
   // this is mitigated by storing assets on the disc in an engine-specific format that
   // is appropriate for GPU upload right after reading from disc.
-
   ProcessedMeshes result;
-
   // Pre-allocate enough memory so as not to hit the
   // allocator on the memcpy hotpath
   {
@@ -176,23 +147,19 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
     result.vertices.reserve(vertexBytes / sizeof(Vertex));
     result.indices.reserve(indexBytes / sizeof(std::uint32_t));
   }
-
   {
     std::size_t totalPrimitives = 0;
     for (const auto& mesh : model.meshes)
       totalPrimitives += mesh.primitives.size();
     result.relems.reserve(totalPrimitives);
   }
-
   result.meshes.reserve(model.meshes.size());
-
   for (const auto& mesh : model.meshes)
   {
     result.meshes.push_back(Mesh{
       .firstRelem = static_cast<std::uint32_t>(result.relems.size()),
       .relemCount = static_cast<std::uint32_t>(mesh.primitives.size()),
     });
-
     for (const auto& prim : mesh.primitives)
     {
       if (prim.mode != TINYGLTF_MODE_TRIANGLES)
@@ -202,11 +169,9 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
         --result.meshes.back().relemCount;
         continue;
       }
-
       const auto normalIt = prim.attributes.find("NORMAL");
       const auto tangentIt = prim.attributes.find("TANGENT");
       const auto texcoordIt = prim.attributes.find("TEXCOORD_0");
-
       const bool hasNormals = normalIt != prim.attributes.end();
       const bool hasTangents = tangentIt != prim.attributes.end();
       const bool hasTexcoord = texcoordIt != prim.attributes.end();
@@ -217,7 +182,6 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
         hasTangents ? tangentIt->second : -1,
         hasTexcoord ? texcoordIt->second : -1,
       };
-
       std::array accessors{
         &model.accessors[prim.indices],
         &model.accessors[accessorIndices[1]],
@@ -225,7 +189,6 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
         hasTangents ? &model.accessors[accessorIndices[3]] : nullptr,
         hasTexcoord ? &model.accessors[accessorIndices[4]] : nullptr,
       };
-
       std::array bufViews{
         &model.bufferViews[accessors[0]->bufferView],
         &model.bufferViews[accessors[1]->bufferView],
@@ -233,15 +196,12 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
         hasTangents ? &model.bufferViews[accessors[3]->bufferView] : nullptr,
         hasTexcoord ? &model.bufferViews[accessors[4]->bufferView] : nullptr,
       };
-
       result.relems.push_back(RenderElement{
         .vertexOffset = static_cast<std::uint32_t>(result.vertices.size()),
         .indexOffset = static_cast<std::uint32_t>(result.indices.size()),
         .indexCount = static_cast<std::uint32_t>(accessors[0]->count),
       });
-
       const std::size_t vertexCount = accessors[1]->count;
-
       std::array ptrs{
         reinterpret_cast<const std::byte*>(model.buffers[bufViews[0]->buffer].data.data()) +
           bufViews[0]->byteOffset + accessors[0]->byteOffset,
@@ -260,7 +220,6 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
             bufViews[4]->byteOffset + accessors[4]->byteOffset
           : nullptr,
       };
-
       std::array strides{
         bufViews[0]->byteStride != 0
           ? bufViews[0]->byteStride
@@ -286,7 +245,6 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
                            tinygltf::GetNumComponentsInType(accessors[4]->type))
                     : 0,
       };
-
       for (std::size_t i = 0; i < vertexCount; ++i)
       {
         auto& vtx = result.vertices.emplace_back();
@@ -298,7 +256,6 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
         glm::vec3 tangent{0};
         glm::vec2 texcoord{0};
         std::memcpy(&pos, ptrs[1], sizeof(pos));
-
         // NOTE: it's faster to do a template here with specializations for all combinations than to
         // do ifs at runtime. Also, SIMD should be used. Try implementing this!
         if (hasNormals)
@@ -307,12 +264,9 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
           std::memcpy(&tangent, ptrs[3], sizeof(tangent));
         if (hasTexcoord)
           std::memcpy(&texcoord, ptrs[4], sizeof(texcoord));
-
-
         vtx.positionAndNormal = glm::vec4(pos, std::bit_cast<float>(encode_normal(normal)));
         vtx.texCoordAndTangentAndPadding =
           glm::vec4(texcoord, std::bit_cast<float>(encode_normal(tangent)), 0);
-
         ptrs[1] += strides[1];
         if (hasNormals)
           ptrs[2] += strides[2];
@@ -321,7 +275,6 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
         if (hasTexcoord)
           ptrs[4] += strides[4];
       }
-
       // Indices are guaranteed to have no stride
       ETNA_VERIFY(bufViews[0]->byteStride == 0);
       const std::size_t indexCount = accessors[0]->count;
@@ -346,10 +299,8 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
       }
     }
   }
-
   return result;
 }
-
 void SceneManager::uploadData(
   std::span<const Vertex> vertices, std::span<const std::uint32_t> indices)
 {
@@ -359,43 +310,33 @@ void SceneManager::uploadData(
     .memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY,
     .name = "unifiedVbuf",
   });
-
   unifiedIbuf = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
     .size = indices.size_bytes(),
     .bufferUsage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
     .memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY,
     .name = "unifiedIbuf",
   });
-
   transferHelper.uploadBuffer<Vertex>(*oneShotCommands, unifiedVbuf, 0, vertices);
   transferHelper.uploadBuffer<std::uint32_t>(*oneShotCommands, unifiedIbuf, 0, indices);
 }
-
 void SceneManager::selectScene(std::filesystem::path path)
 {
   auto maybeModel = loadModel(path);
   if (!maybeModel.has_value())
     return;
-
   auto model = std::move(*maybeModel);
-
   // By aggregating all SceneManager fields mutations here,
   // we guarantee that we don't forget to clear something
   // when re-loading a scene.
-
   // NOTE: you might want to store these on the GPU for GPU-driven rendering.
   auto [instMats, instMeshes] = processInstances(model);
   instanceMatrices = std::move(instMats);
   instanceMeshes = std::move(instMeshes);
-
   auto [verts, inds, relems, meshs] = processMeshes(model);
-
   renderElements = std::move(relems);
   meshes = std::move(meshs);
-
   uploadData(verts, inds);
 }
-
 etna::VertexByteStreamFormatDescription SceneManager::getVertexFormatDescription()
 {
   return etna::VertexByteStreamFormatDescription{
@@ -410,4 +351,89 @@ etna::VertexByteStreamFormatDescription SceneManager::getVertexFormatDescription
         .offset = sizeof(glm::vec4),
       },
     }};
+}
+// ------ Below are the copypasted methods for HW7. ------
+SceneManager::ProcessedMeshes SceneManager::processMeshesCompressed(const tinygltf::Model& model) const
+{
+  ProcessedMeshes result;
+  ETNA_VERIFY(model.buffers.size() == 1); // sorry I was tired I didn't want to generalize
+  std::size_t indexStart = model.buffers[0].data.size();
+  {
+    for (const auto& bufView : model.bufferViews)
+    {
+      if (bufView.target == TINYGLTF_TARGET_ELEMENT_ARRAY_BUFFER) {
+        indexStart = std::min(indexStart, bufView.byteOffset);
+      }
+    }
+    result.vertices.resize(indexStart / sizeof(Vertex));
+    result.indices.resize((model.buffers[0].data.size() - indexStart) / sizeof(uint32_t));
+    memcpy(result.vertices.data(), model.buffers[0].data.data(), indexStart);
+    memcpy(result.indices.data(), model.buffers[0].data.data() + indexStart, model.buffers[0].data.size() - indexStart);
+  }
+  {
+    std::size_t totalPrimitives = 0;
+    for (const auto& mesh : model.meshes)
+      totalPrimitives += mesh.primitives.size();
+    result.relems.reserve(totalPrimitives);
+  }
+  result.meshes.reserve(model.meshes.size());
+  for (const auto& mesh : model.meshes)
+  {
+    result.meshes.push_back(Mesh{
+      .firstRelem = static_cast<std::uint32_t>(result.relems.size()),
+      .relemCount = static_cast<std::uint32_t>(mesh.primitives.size()),
+    });
+    for (const auto& prim : mesh.primitives)
+    {
+      if (prim.mode != TINYGLTF_MODE_TRIANGLES)
+      {
+        spdlog::warn(
+          "Encountered a non-triangles primitive, these are not supported for now, skipping it!");
+        --result.meshes.back().relemCount;
+        continue;
+      }
+      const auto normalIt = prim.attributes.find("NORMAL");
+      const auto tangentIt = prim.attributes.find("TANGENT");
+      const auto texcoordIt = prim.attributes.find("TEXCOORD_0");
+      const bool hasNormals = normalIt != prim.attributes.end();
+      const bool hasTangents = tangentIt != prim.attributes.end();
+      const bool hasTexcoord = texcoordIt != prim.attributes.end();
+      std::array accessorIndices{
+        prim.indices,
+        prim.attributes.at("POSITION"),
+        hasNormals ? normalIt->second : -1,
+        hasTangents ? tangentIt->second : -1,
+        hasTexcoord ? texcoordIt->second : -1,
+      };
+      std::array accessors{
+        &model.accessors[prim.indices],
+        &model.accessors[accessorIndices[1]],
+        hasNormals ? &model.accessors[accessorIndices[2]] : nullptr,
+        hasTangents ? &model.accessors[accessorIndices[3]] : nullptr,
+        hasTexcoord ? &model.accessors[accessorIndices[4]] : nullptr,
+      };
+      result.relems.push_back(RenderElement{
+        .vertexOffset = static_cast<std::uint32_t>(model.bufferViews[accessors[1]->bufferView].byteOffset / sizeof(Vertex)),
+        .indexOffset = static_cast<std::uint32_t>((model.bufferViews[accessors[0]->bufferView].byteOffset - indexStart) / sizeof(uint32_t)),
+        .indexCount = static_cast<std::uint32_t>(accessors[0]->count),
+      });
+      // Indices are guaranteed to have no stride
+      ETNA_VERIFY(model.bufferViews[accessors[0]->bufferView].byteStride == 0);
+    }
+  }
+  return result;
+}
+void SceneManager::selectSceneCompressed(std::filesystem::path path)
+{
+  auto maybeModel = loadModel(path);
+  if (!maybeModel.has_value())
+    return;
+  auto model = std::move(*maybeModel);
+  auto [instMats, instMeshes] = processInstances(model);
+  instanceMatrices = std::move(instMats);
+  instanceMeshes = std::move(instMeshes);
+  auto [verts, inds, relems, meshs] = processMeshesCompressed(model);
+  renderElements = std::move(relems);
+  meshes = std::move(meshs);
+  uploadData(verts, inds);
 }
