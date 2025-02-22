@@ -1,0 +1,21 @@
+#version 430
+
+layout (local_size_x = 32, local_size_y = 32) in;
+layout (binding = 0, rgba8) uniform image2D resultImage;
+
+layout(push_constant) uniform params {
+  uint resolution_x;
+  uint resolution_y;
+  float time;
+} pushed_params;
+
+void main() {
+  ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
+
+  vec2 iResolution = vec2(pushed_params.resolution_x, pushed_params.resolution_y);
+
+  vec2 c = uv / iResolution.xy;
+  vec3 res = normalize(vec3(c.x, pushed_params.time, c.y));
+
+  imageStore(resultImage, uv, vec4(res, 0.0));
+}
