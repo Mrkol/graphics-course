@@ -239,9 +239,10 @@ void WorldRenderer::renderPostprocess(
     etna::set_state(cmd_buf, 
       target_image, 
       vk::PipelineStageFlagBits2::eAllCommands, 
-      {}, 
-      vk::ImageLayout::ePresentSrcKHR, 
-      vk::ImageAspectFlagBits::eColor
+      vk::AccessFlagBits2::eColorAttachmentRead | vk::AccessFlagBits2::eColorAttachmentWrite, 
+      vk::ImageLayout::eColorAttachmentOptimal, 
+      vk::ImageAspectFlagBits::eColor,
+      ForceSetState::eTrue
     );
     etna::flush_barriers(cmd_buf);
     return;

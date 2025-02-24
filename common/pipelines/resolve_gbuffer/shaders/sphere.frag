@@ -17,6 +17,7 @@ layout(push_constant) uniform pc_t
     vec4 pos;
     vec4 color;
     float degree;
+    int pbr;
 } params;
 
 

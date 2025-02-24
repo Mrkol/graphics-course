@@ -23,7 +23,7 @@ Backbuffer::allocate(glm::uvec2 extent)
         .extent = vk::Extent3D{resolution.x, resolution.y, 1},
         .name = "backbuffer_depth",
         .format = DEPTH_ATTACHMENT_FORMAT,
-        .imageUsage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc | vk::ImageUsageFlagBits::eStorage,
+        .imageUsage = vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferSrc,
     });
 
 

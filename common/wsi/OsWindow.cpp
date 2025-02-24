@@ -37,5 +37,5 @@ vk::UniqueSurfaceKHR OsWindow::createVkSurface(vk::Instance instance)
 
   return vk::UniqueSurfaceKHR{
     vk::SurfaceKHR{surface},
-    vk::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>{instance}};
+    vk::detail::ObjectDestroy<vk::Instance, VULKAN_HPP_DEFAULT_DISPATCHER_TYPE>{instance}};
 }
