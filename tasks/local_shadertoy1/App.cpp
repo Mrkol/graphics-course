@@ -4,7 +4,6 @@
 #include <etna/GlobalContext.hpp>
 #include <etna/PipelineManager.hpp>
 
-
 App::App()
   : resolution{1280, 720}
   , useVsync{true}
@@ -73,8 +72,23 @@ App::App()
   // How it is actually performed is not trivial, but we can skip this for now.
   commandManager = etna::get_context().createPerFrameCmdMgr();
 
+  auto &context = etna::get_context();
+  
+  etna::create_program("local_shadertoy1", {LOCAL_SHADERTOY1_SHADERS_ROOT "toy.comp.spv"});
 
-  // TODO: Initialize any additional resources you require here!
+  pipeline = context.getPipelineManager().createComputePipeline("local_shadertoy1", {});
+
+  proxy_image = context.createImage(etna::Image::CreateInfo {
+		  .extent = vk::Extent3D {resolution.x, resolution.y, 1},
+		  .name = "proxy",
+		  .format = vk::Format::eR8G8B8A8Snorm,
+		  .imageUsage = vk::ImageUsageFlagBits::eStorage | 
+		  		vk::ImageUsageFlagBits::eTransferSrc
+  });
+
+  sampler = etna::Sampler(etna::Sampler::CreateInfo{
+		  .name = "sampler"
+  });
 }
 
 App::~App()
@@ -137,9 +151,78 @@ void App::drawFrame()
       // and blit/copy operations.
       etna::flush_barriers(currentCmdBuf);
 
+      etna::ShaderProgramInfo shaderComputeInfo = etna::get_shader_program("local_shadertoy1");
 
-      // TODO: Record your commands here!
+      etna::DescriptorSet set = etna::create_descriptor_set(
+        shaderComputeInfo.getDescriptorLayoutId(0),
+        currentCmdBuf, 
+	{etna::Binding{0, proxy_image.genBinding(sampler.get(), vk::ImageLayout::eGeneral)}}
+      );
+      
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
 
+      currentCmdBuf.bindDescriptorSets(
+		      vk::PipelineBindPoint::eCompute, 
+		      pipeline.getVkPipelineLayout(), 
+		      0, 
+		      {set.getVkSet()}, 
+		      {}
+       );
+
+       etna::set_state(
+        currentCmdBuf,
+        proxy_image.get(),
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderWrite,
+        vk::ImageLayout::eGeneral,
+        vk::ImageAspectFlagBits::eColor
+      );
+
+      struct { struct {
+	      uint32_t x;
+	      uint32_t y;
+             } resolution;
+      } params = {{resolution.x, resolution.y}};
+
+      currentCmdBuf.pushConstants(
+		      pipeline.getVkPipelineLayout(),
+		      vk::ShaderStageFlagBits::eCompute,
+		      0,
+		      sizeof(params),
+		      &params
+      );
+
+      etna::flush_barriers(currentCmdBuf);
+      
+      currentCmdBuf.dispatch(resolution.x / 32u, resolution.y / 32u, 1);
+ 
+      etna::set_state(
+        currentCmdBuf,
+        proxy_image.get(),
+        vk::PipelineStageFlagBits2::eBlit,
+        vk::AccessFlagBits2::eTransferRead,
+        vk::ImageLayout::eTransferSrcOptimal,
+        vk::ImageAspectFlagBits::eColor
+      );
+
+      etna::flush_barriers(currentCmdBuf);
+
+      vk::ImageBlit region = {
+          .srcSubresource = vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
+          .srcOffsets     = {{vk::Offset3D(0, 0, 0), vk::Offset3D(resolution.x, resolution.y, 1)}},
+          .dstSubresource = vk::ImageSubresourceLayers(vk::ImageAspectFlagBits::eColor, 0, 0, 1),
+          .dstOffsets     = {{vk::Offset3D(0, 0, 0), vk::Offset3D(resolution.x, resolution.y, 1)}},
+      };
+
+      currentCmdBuf.blitImage(
+        proxy_image.get(),
+        vk::ImageLayout::eTransferSrcOptimal,
+        backbuffer,
+        vk::ImageLayout::eTransferDstOptimal,
+        1,
+        &region,
+        vk::Filter::eLinear
+      );
 
       // At the end of "rendering", we are required to change how the pixels of the
       // swpchain image are laid out in memory to something that is appropriate
