@@ -4,7 +4,7 @@
 #include <etna/PerFrameCmdMgr.hpp>
 #include <etna/ComputePipeline.hpp>
 #include <etna/Image.hpp>
-#include <etna/Sample.hpp>
+#include <etna/Sampler.hpp>
 
 #include "wsi/OsWindowingManager.hpp"
 

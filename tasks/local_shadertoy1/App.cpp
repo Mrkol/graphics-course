@@ -4,6 +4,9 @@
 #include <etna/GlobalContext.hpp>
 #include <etna/PipelineManager.hpp>
 
+#include <chrono>
+#include <iostream>
+
 App::App()
   : resolution{1280, 720}
   , useVsync{true}
@@ -178,11 +181,17 @@ void App::drawFrame()
         vk::ImageAspectFlagBits::eColor
       );
 
+      static auto start = std::chrono::steady_clock::now();
+      auto end = std::chrono::steady_clock::now();
+      
+      auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.f;
+
       struct { struct {
 	      uint32_t x;
 	      uint32_t y;
              } resolution;
-      } params = {{resolution.x, resolution.y}};
+      	     float time;
+      } params = {{resolution.x, resolution.y}, elapsed};
 
       currentCmdBuf.pushConstants(
 		      pipeline.getVkPipelineLayout(),
