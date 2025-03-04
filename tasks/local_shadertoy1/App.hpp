@@ -4,6 +4,8 @@
 #include <etna/PerFrameCmdMgr.hpp>
 #include <etna/ComputePipeline.hpp>
 #include <etna/Image.hpp>
+#include <etna/Sampler.hpp>
+#include <chrono>
 
 #include "wsi/OsWindowingManager.hpp"
 
@@ -28,4 +30,10 @@ private:
 
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
+
+  etna::Sampler sampler;
+  etna::Image bufImage;
+  etna::ComputePipeline pipeline;
+
+  std::chrono::system_clock::time_point timePointStart = std::chrono::system_clock::now();
 };
