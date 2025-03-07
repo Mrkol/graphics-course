@@ -2,12 +2,11 @@
 
 #include <etna/Window.hpp>
 #include <etna/PerFrameCmdMgr.hpp>
-#include <etna/ComputePipeline.hpp>
+#include <etna/GraphicsPipeline.hpp>
 #include <etna/Image.hpp>
 #include <etna/Sampler.hpp>
 
 #include "wsi/OsWindowingManager.hpp"
-
 
 class App
 {
@@ -19,6 +18,8 @@ public:
 
 private:
   void drawFrame();
+  auto getParams();
+  etna::Image loadTexture(const std::string &path, const std::string &name);
 
 private:
   OsWindowingManager windowing;
@@ -30,7 +31,10 @@ private:
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
 
-  etna::ComputePipeline pipeline;
-  etna::Image proxy_image;
+  etna::GraphicsPipeline toyPipeline;
+  etna::GraphicsPipeline genPipeline;
+  etna::Image gtxt;
+  etna::Image skytxt;
+  etna::Image gentxt;
   etna::Sampler sampler;
 };
