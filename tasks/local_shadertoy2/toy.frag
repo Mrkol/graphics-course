@@ -1,0 +1,360 @@
+#version 430
+
+
+layout(location = 0) out vec4 fragColor;
+
+layout(binding = 0) uniform sampler2D emp;
+layout(binding = 1) uniform sampler2D iChannel0;
+layout(push_constant) uniform pushed_params 
+
+{
+  uint resolution_x;
+  uint resolution_y;
+  float time;
+  float mouse_x;
+  float mouse_y;
+} pushed_params_t;
+
+float iTime;
+vec2 iResolution;
+vec2 iMouse;
+
+
+const float SCALECOUNT = 150.0;
+const float INVSC = 1.0 / SCALECOUNT;
+const float RSPEED = 4.0;
+const float NV = 0.2;
+
+
+
+float noise_texture(vec2 uv) {
+    return fract(sin(dot(uv, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+
+vec4 freqs = vec4(0.0);
+
+vec4 freqAnalysis() { // extracting frequency for noise
+
+    vec4 samp = vec4(0.0);
+    samp.x = noise_texture(vec2(0.0, 0.0));
+    samp.y = noise_texture(vec2(0.33, 0.0));
+    samp.z = noise_texture(vec2(0.66, 0.0));
+    samp.w = noise_texture(vec2(1.0, 0.0));
+    return samp;
+}
+
+
+
+vec3 rgb2hsv(in vec3 c) {
+    vec4 colConst = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+    vec4 compOrd = mix(vec4(c.bg, colConst.wz), vec4(c.gb, colConst.xy), step(c.b, c.g));
+    vec4 hueVal = mix(vec4(compOrd.xyw, c.r), vec4(c.r, compOrd.yzx), step(compOrd.x, c.r));
+
+    float sat = hueVal.x - min(hueVal.w, hueVal.y);
+    float epsilon = 1.0e-10;
+    return vec3(abs(hueVal.z + (hueVal.w - hueVal.y) / (6.0 * sat + epsilon)), sat / (hueVal.x + epsilon), hueVal.x);
+}
+
+
+vec3 hsv2rgb(in vec3 c) {
+    vec4 colConst = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+    vec3 hueComp = abs(fract(c.xxx + colConst.xyz) * 6.0 - colConst.www);
+    return c.z * mix(colConst.xxx, clamp(hueComp - colConst.xxx, 0.0, 1.0), c.y);
+}
+
+
+float sin3(in vec3 p) {
+	return (sin(p.x) + sin(p.y) + sin(p.z));
+}
+
+
+float noise(in vec3 p) {
+    float tf = iTime * 0.05;
+    float noiseVal = (sin3((p + vec3(tf * 7.0, tf * 2.3, tf * 1.0)) * 10.0) * freqs.w +
+                      sin3((p + vec3(tf * 8.0, tf * 1.2, tf * 8.4)) * 8.0) * freqs.z +
+                      sin3((p + vec3(tf * 2.4, tf * 2.3, tf * 2.6)) * 6.0) * freqs.y +
+                      sin3((p + vec3(tf * 5.4, tf * 5.8, tf * 1.9)) * 4.0) * freqs.x) * NV;
+    
+    noiseVal = abs(noiseVal);
+    float f = noiseVal * 10.0;
+    
+    noiseVal = clamp((smoothstep(0.0, 1.0, mix(0.1, 0.9, noiseVal*10.0-f)) + f)* 0.1, 0.0, 1.0);
+    return noiseVal;
+}
+
+
+vec3 colorPaletteGeneration(in float t, in vec3 a, in vec3 b, in vec3 c, in vec3 d )
+{
+    return a + b*cos( 6.28318*(c*t+d));
+}
+
+
+bool sdSphere(in vec3 ro, in vec3 rd, in vec3 c, in float r, out vec3 p1, out vec3 p2) {
+    p1 = vec3(0.0); // first intersection point
+    p2 = vec3(0.0); // second
+    
+    vec3 oc = ro - c;
+    float b = dot(rd, oc);
+    float c2 = dot(oc, oc) - r * r;
+    float disc = b * b - c2;
+    if (disc < 0.0) return false;
+    float sqrtDisc = sqrt(disc);
+    float t1 = -b - sqrtDisc;
+    float t2 = -b + sqrtDisc;
+    
+    p1 = ro + t1 * rd;
+    p2 = ro + t2 * rd;
+    return true;
+}
+
+
+vec3 sphereNormal(in vec3 dir, in float r, in float e) {
+    float theta = atan(dir.y,dir.x) ;
+    float phi = acos(dir.z);
+    
+    vec3 dx0 = vec3(cos(theta)*sin(phi+e), sin(theta)*sin(phi+e), cos(phi+e));
+    vec3 dx1 = vec3(cos(theta)*sin(phi-e), sin(theta)*sin(phi-e), cos(phi-e));
+    vec3 dy0 = vec3(cos(theta+e)*sin(phi), sin(theta+e)*sin(phi), cos(phi));
+    vec3 dy1 = vec3(cos(theta-e)*sin(phi), sin(theta-e)*sin(phi), cos(phi));
+
+    float nx0 = noise(dx0*r);
+    float nx1 = noise(dx1*r);
+    float ny0 = noise(dy0*r);
+    float ny1 = noise(dy1*r);
+    
+    dx0 *= r + nx0;
+    dx1 *= r + nx1;    
+    dy0 *= r + ny0;
+    dy1 *= r + ny1;
+
+    return normalize(cross(dy0 - dy1, dx1 - dx0));
+}
+
+
+bool sdDistortedSphere(in vec3 ro, in vec3 rd, in vec3 c, in float r, in float br, out vec3 n, out vec3 sd) {
+    n = vec3(0.0);
+    sd = vec3(0.0);
+    
+    vec3 bp1 = vec3(0.0); // bounding points for larger sphere assuming it's distorted all over
+    vec3 bp2 = vec3(0.0);
+    bool bres = sdSphere(ro, rd, c, br, bp1, bp2);
+    if (!bres) return false;
+    
+    vec3 p1 = vec3(0.0); // actual intersection points
+    vec3 p2 = vec3(0.0);
+    bool res = sdSphere(ro, rd, c, r, p1, p2); 
+    
+    float dist = float(res) * length(p1 - bp1) + (1.0 - float(res)) * length(bp1 - bp2);
+    
+    const float inv_sc = 1.0 / SCALECOUNT;
+    float scdist = dist * inv_sc;
+    
+    bool isHit = false;
+    vec3 pn = vec3(0.0); // potential normal
+    for (float i = 0.0; i < SCALECOUNT; i++) {
+    	pn = (bp1 + i * scdist * rd) - c;
+        sd = normalize(pn) * r;
+        float h = length(pn) - r - scdist;
+        
+        float h0 = noise(sd); // distortion height
+        if (h0 > h) {
+            isHit = true;
+            break;
+        } 
+    }
+    
+    n = sphereNormal(normalize(pn), r, scdist);
+    return isHit;
+}
+
+       
+float shadowFactor(in vec3 surfdir, in vec3 ld, in vec3 c, in float r, in float br) {
+    float nv = noise(surfdir);
+    vec3 ro = c + (normalize(surfdir) * (nv + r));
+    
+    vec3 bp1 = vec3(0.0);
+    vec3 bp2 = vec3(0.0);
+    bool bres = sdSphere(ro, -ld, c, br, bp1, bp2);
+    
+    vec3 p1 = vec3(0.0);
+    vec3 p2 = vec3(0.0);
+    bool res = sdSphere(ro, -ld, c, r, p1, p2);
+    
+    float dist = min(length(ro - bp1)+ float(!bres) * 1000.0, 
+                     length(ro - p1) + float(!res) * 1000.0);
+    
+    float scd = dist * INVSC;
+    
+    float mindinst = 1.0;
+    
+    for (float i = 0.0; i < SCALECOUNT; i++) {
+    	vec3 pn = (ro + i* scd * -ld) - c;
+		
+        surfdir = normalize(pn) * r;
+        
+        float h = length(pn) - r + scd;
+        
+        float h0 = noise(surfdir);
+        if (h0 > h) {
+            mindinst = 0.0;
+            break;
+        }
+        
+        mindinst = min(mindinst, 4.0 * (h - h0) / (i * scd));
+    }
+    
+    return clamp(mindinst, 0.0, 1.0);
+    
+}
+
+
+vec3 GetColor(vec3 sd) {
+    float n = noise(sd);
+    vec3 c = colorPaletteGeneration(n, vec3(0.5, 0.5, 0.5), vec3(0.5, 0.5, 0.5), vec3(1.0, 0.7, 0.4), vec3(0.0, 0.15, 0.20));
+    
+    c = rgb2hsv(c);
+    c.y += 0.30;
+    c.z += 0.1;
+    c = hsv2rgb(c);
+    
+    return c;
+}
+
+
+vec3 cameraRay(vec2 fragCoord, float n) {
+    float a = 1.0/max(iResolution.x, iResolution.y);
+    
+    return normalize(vec3((fragCoord - iResolution.xy*0.5)*a, n));
+}
+
+
+mat3 rotAx(vec3 axis, float phi) {
+    float c = cos(phi);
+    float s = sin(phi);
+    float x = axis.x;
+    float y = axis.y;
+    float z = axis.z;
+    return mat3(vec3(c + (1.0 - c) * x * x, (1.0 - c) * x * y - s * z, (1.0 - c) * x * z + s * y),
+                vec3((1.0 - c) * y * x + s * z, c + (1.0 - c) * y * y, (1.0 - c) * y * z - s * x),
+                vec3((1.0 - c) * z * x - s * y, (1.0 - c) * z * y + s * x, c + (1.0 - c) * z * z)
+    );
+}
+
+mat3 rotX(float phi) {
+    return rotAx(vec3(1.0, 0.0, 0.0), phi);
+}
+
+mat3 rotY(float phi) {
+    return rotAx(vec3(0.0, 1.0, 0.0), phi);
+}
+
+mat3 rotZ(float phi) {
+    return rotAx(vec3(0.0, 0.0, 1.0), phi);
+}
+
+
+struct cam {
+    vec3 p;
+    vec3 d;
+    vec3 ang;
+    float fov;
+};
+
+cam mainCam = cam(vec3(0.0, 0.0, 5.0), vec3(0.0, 0.0, -1.0), vec3(0.0, 1.0, 0.0), 90.0);
+
+
+vec3 getSkyboxColor(vec2 rd, sampler2D tex) {
+    return texture(tex, rd).rgb;
+}
+
+
+vec3 triplanarTexture(vec3 pos, vec3 normal) {
+    vec3 blend = abs(normal);
+    blend /= (blend.x + blend.y + blend.z);
+
+    vec2 uvX = pos.yz;
+    vec2 uvY = pos.xz;
+    vec2 uvZ = pos.xy;
+
+    vec3 texX = texture(emp, uvX).rgb;
+    vec3 texY = texture(emp, uvY).rgb;
+    vec3 texZ = texture(emp, uvZ).rgb;
+
+    return texX * blend.x + texY * blend.y + texZ * blend.z;
+}
+
+
+vec3 proceduralTex(sampler2D tex, vec3 pos) {
+    vec2 uv = pos.xy * 0.5 + 0.5;
+    return texture(tex, uv).rgb;
+}
+
+
+void mainImage( out vec4 fragColor, in vec2 fragCoord )
+{
+    vec2 mouseAng = (iMouse.xy * 2.0 - iResolution.xy) * RSPEED / iResolution.x;
+    float phi = mouseAng.x;
+    float theta = mouseAng.y;
+    vec3 fCamPos = rotY(phi) * mainCam.p;
+    vec3 fCamDir = rotY(phi) * mainCam.d;
+    vec3 fCamT = mainCam.ang;
+    vec3 fCamR = cross(fCamDir, fCamT);
+    float camD = 1.0 / tan(radians(mainCam.fov / 2.0));    
+    fCamPos = rotAx(fCamR, -theta) * fCamPos;
+    fCamDir = rotAx(fCamR, -theta) * fCamDir;
+    fCamT = rotAx(fCamR, -theta) * fCamT;
+   
+    vec2 uv = (fragCoord * 2.0 - iResolution.xy) / iResolution.x;
+    vec3 rd = normalize(fCamDir * camD + fCamR * uv.x + fCamT * uv.y);
+
+    vec3 sc = vec3(0.0, 0.0, 10.0);
+    float sr = 1.0;
+    vec3 n = vec3(0.0);
+    vec3 sd = vec3(0.0);
+    
+    if (sdSphere(vec3(0.0), rd, fCamPos, sr + 1.0, n, sd)) {
+        freqs = freqAnalysis();
+    }
+    
+    bool hit = sdDistortedSphere(vec3(0.0), rd, fCamPos, sr, sr + 1.0, n, sd);
+    
+    vec3 color;
+    
+if (hit) {
+    float w = max(max(freqs.x, freqs.y), max(freqs.z, freqs.w));
+    vec2 nMult = vec2(sin(iTime * 1.4), cos(iTime * 1.2));
+    vec3 l = normalize(vec3(-(nMult.x * 2.0 - 1.0), -(nMult.y * 2.0 - 1.0), -0.9 + w * 3.0));
+    float sf = shadowFactor(sd, l, sc, sr, sr + 1.0);
+    
+    vec3 texColor = triplanarTexture(sd, n);
+    vec3 procTexColor = proceduralTex(emp, sd);
+    
+    color = mix(GetColor(sd), texColor, 0.5);
+    color = mix(color, procTexColor, 0.7);
+
+    vec3 diff = color * max(dot(-l, n), 0.0 ) * 0.95;
+    vec3 amb = color * 0.5;
+    
+    color = diff;
+    color += amb;
+    color *= diff;
+}
+
+    else {
+        color = getSkyboxColor(rd.xy, iChannel0);
+    }
+    
+    fragColor = vec4(pow(color, vec3(0.55)), 1.0);
+}
+
+void main( )
+{
+  ivec2 fragCoord = ivec2(gl_FragCoord.xy);
+
+  iResolution = vec2(pushed_params_t.resolution_x, pushed_params_t.resolution_y);
+  iTime = pushed_params_t.time;
+  iMouse = vec2(pushed_params_t.mouse_x, pushed_params_t.mouse_y);
+
+  mainImage(fragColor, fragCoord);
+}
