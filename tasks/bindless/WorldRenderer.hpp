@@ -34,6 +34,7 @@ public:
     vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view);
 
 private:
+  void set_textures_states(vk::CommandBuffer cmd_buf);
   void renderScene(
     vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout);
 
@@ -44,6 +45,7 @@ private:
   etna::Image mainViewDepth;
   etna::Buffer constants;
   etna::Buffer zeroLengthBuffer;  // Bind it to unbind some other buffer.
+  etna::Sampler defaultSampler;
 
   struct PushConstants
   {

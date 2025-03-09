@@ -31,6 +31,13 @@ void WorldRenderer::allocateResources(glm::uvec2 swapchain_resolution)
     .memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY,
     .name = "zero_length_buffer",
   });
+
+  defaultSampler = etna::Sampler(etna::Sampler::CreateInfo
+  {
+    .filter = vk::Filter::eLinear,
+    .addressMode = vk::SamplerAddressMode::eRepeat,
+    .name = "default_sampler",
+  });
 }
 
 void WorldRenderer::loadScene(std::filesystem::path path)
@@ -96,6 +103,20 @@ void WorldRenderer::update(const FramePacket& packet)
   }
 }
 
+void WorldRenderer::set_textures_states(vk::CommandBuffer cmd_buf) {
+  auto images = sceneMgr->getImages();
+  for (auto& img : images) {
+    etna::set_state(
+      cmd_buf,
+      img.get(),
+      vk::PipelineStageFlagBits2::eFragmentShader,
+      vk::AccessFlagBits2::eColorAttachmentRead,
+      vk::ImageLayout::eShaderReadOnlyOptimal,
+      vk::ImageAspectFlagBits::eColor);
+  }
+  etna::flush_barriers(cmd_buf);
+}
+
 void WorldRenderer::renderScene(
   vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout)
 {
@@ -112,6 +133,18 @@ void WorldRenderer::renderScene(
 
   auto meshes = sceneMgr->getMeshes();
   auto relems = sceneMgr->getRenderElements();
+  auto images = sceneMgr->getImages();
+
+  std::vector<etna::DescriptorSet> texturesDescriptorSets;
+  for (auto& img : images) {
+    texturesDescriptorSets.push_back(etna::create_descriptor_set(
+      etna::get_shader_program("static_mesh_material").getDescriptorLayoutId(0),
+      cmd_buf,
+      {
+        etna::Binding{0, img.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
+      }
+    ));
+  }
 
   for (std::size_t instIdx = 0; instIdx < instanceMeshes.size(); ++instIdx)
   {
@@ -126,12 +159,18 @@ void WorldRenderer::renderScene(
     {
       const auto relemIdx = meshes[meshIdx].firstRelem + j;
       const auto& relem = relems[relemIdx];
+      // auto& img = relem.material.albedoId == Material::ImageId::Invalid ? images.back() : images[static_cast<uint32_t>(relem.material.albedoId)];
+      auto& set = relem.material.albedoId == Material::ImageId::Invalid ? texturesDescriptorSets.back() : texturesDescriptorSets[static_cast<uint32_t>(relem.material.albedoId)];
+
+      {
+        vk::DescriptorSet vkSet = set.getVkSet();
+        cmd_buf.bindDescriptorSets(
+          vk::PipelineBindPoint::eGraphics, staticMeshPipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
+      }
+      
       cmd_buf.drawIndexed(relem.indexCount, 1, relem.indexOffset, relem.vertexOffset, 0);
     }
   }
-
-  /*cmd_buf.bindVertexBuffers(0, {zeroLengthBuffer.get()}, {0});
-  cmd_buf.bindIndexBuffer(zeroLengthBuffer.get(), 0, vk::IndexType::eUint32);*/
 }
 
 void WorldRenderer::renderWorld(
@@ -142,6 +181,8 @@ void WorldRenderer::renderWorld(
   // draw final scene to screen
   {
     ETNA_PROFILE_GPU(cmd_buf, renderForward);
+
+    set_textures_states(cmd_buf);
 
     etna::RenderTargetState renderTargets(
       cmd_buf,

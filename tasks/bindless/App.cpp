@@ -26,10 +26,10 @@ App::App()
   //renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/SimpleMeshes/glTF/SimpleMeshes.gltf");
   //renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/lovely_town/scene.gltf");
   // baked:
-  renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/SimpleMeshes/glTF/SimpleMeshes_baked.gltf");
+  //renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/SimpleMeshes/glTF/SimpleMeshes_baked.gltf");
   //renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/low_poly_dark_town/scene_baked.gltf");
   //renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/lovely_town/scene_baked.gltf");
-  //renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/Avocado/Avocado_baked.gltf");
+  renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/Avocado/Avocado_baked.gltf");
 
   ImGuiRenderer::enableImGuiForWindow(mainWindow->native());
 }

@@ -2,9 +2,23 @@
 #include <filesystem>
 #include <glm/glm.hpp>
 #include <tiny_gltf.h>
+#include <etna/Etna.hpp>
 #include <etna/Buffer.hpp>
 #include <etna/BlockingTransferHelper.hpp>
 #include <etna/VertexInput.hpp>
+
+struct Material {
+  enum class ImageId : uint32_t {
+    Invalid = ~uint32_t{0}
+  };
+
+  ImageId albedoId = ImageId::Invalid;
+
+  static Material none() {
+    return Material{ImageId::Invalid};
+  }
+};
+
 // A single render element (relem) corresponds to a single draw call
 // of a certain pipeline with specific bindings (including material data)
 struct RenderElement
@@ -12,9 +26,9 @@ struct RenderElement
   std::uint32_t vertexOffset;
   std::uint32_t indexOffset;
   std::uint32_t indexCount;
-  // Not implemented!
-  // Material* material;
+  Material material;
 };
+
 // A mesh is a collection of relems. A scene may have the same mesh
 // located in several different places, so a scene consists of **instances**,
 // not meshes.
@@ -23,6 +37,7 @@ struct Mesh
   std::uint32_t firstRelem;
   std::uint32_t relemCount;
 };
+
 class SceneManager
 {
 public:
@@ -35,6 +50,7 @@ public:
   std::span<const std::uint32_t> getInstanceMeshes() { return instanceMeshes; }
   // Every mesh is a collection of relems
   std::span<const Mesh> getMeshes() { return meshes; }
+  std::span<etna::Image> getImages() { return images; }
   // Every relem is a single draw call
   std::span<const RenderElement> getRenderElements() { return renderElements; }
   vk::Buffer getVertexBuffer() { return unifiedVbuf.get(); }
@@ -60,12 +76,14 @@ private:
   {
     std::vector<Vertex> vertices;
     std::vector<std::uint32_t> indices;
+    std::vector<tinygltf::Image> images;
     std::vector<RenderElement> relems;
     std::vector<Mesh> meshes;
   };
   ProcessedMeshes processMeshes(const tinygltf::Model& model) const;
   ProcessedMeshes processMeshesCompressed(const tinygltf::Model& model) const;
-  void uploadData(std::span<const Vertex> vertices, std::span<const std::uint32_t>);
+  void uploadData(std::span<const Vertex> vertices, std::span<const std::uint32_t>,
+                  std::span<const tinygltf::Image> imges = std::span<const tinygltf::Image>());
 private:
   tinygltf::TinyGLTF loader;
   std::unique_ptr<etna::OneShotCmdMgr> oneShotCommands;
@@ -76,4 +94,5 @@ private:
   std::vector<std::uint32_t> instanceMeshes;
   etna::Buffer unifiedVbuf;
   etna::Buffer unifiedIbuf;
+  std::vector<etna::Image> images;
 };

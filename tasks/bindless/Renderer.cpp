@@ -25,13 +25,23 @@ void Renderer::initVulkan(std::span<const char*> instance_extensions)
   std::vector<const char*> deviceExtensions;
 
   deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+  // deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+  // deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
+
+  // vk::PhysicalDeviceDynamicRenderingLocalReadFeatures dynamicLocalReadFeatures {
+  //   .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+  //   .pNext = NULL,
+  //   .dynamicRenderingLocalRead = VK_TRUE
+  // };
 
   etna::initialize(etna::InitParams{
     .applicationName = "model_bakery_renderer",
     .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
     .instanceExtensions = instanceExtensions,
     .deviceExtensions = deviceExtensions,
-    .features = vk::PhysicalDeviceFeatures2{.features = {}},
+    .features = vk::PhysicalDeviceFeatures2{.features = {
+      // dynamicLocalReadFeatures
+    }},
     .physicalDeviceIndexOverride = {},
     .numFramesInFlight = 2,
   });

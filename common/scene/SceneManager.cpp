@@ -6,11 +6,13 @@
 #include <glm/gtc/quaternion.hpp>
 #include <etna/GlobalContext.hpp>
 #include <etna/OneShotCmdMgr.hpp>
+
 SceneManager::SceneManager()
   : oneShotCommands{etna::get_context().createOneShotCmdMgr()}
   , transferHelper{etna::BlockingTransferHelper::CreateInfo{.stagingSize = 4096 * 4096 * 4}}
 {
 }
+
 std::optional<tinygltf::Model> SceneManager::loadModel(std::filesystem::path path)
 {
   tinygltf::Model model;
@@ -41,6 +43,7 @@ std::optional<tinygltf::Model> SceneManager::loadModel(std::filesystem::path pat
     spdlog::warn("glTF: No glTF extensions are currently implemented!");
   return model;
 }
+
 SceneManager::ProcessedInstances SceneManager::processInstances(const tinygltf::Model& model) const
 {
   std::vector nodeTransforms(model.nodes.size(), glm::identity<glm::mat4x4>());
@@ -109,6 +112,7 @@ SceneManager::ProcessedInstances SceneManager::processInstances(const tinygltf::
     }
   return result;
 }
+
 static std::uint32_t encode_normal(glm::vec3 normal)
 {
   const std::int32_t x = static_cast<std::int32_t>(normal.x * 32767.0f);
@@ -118,6 +122,7 @@ static std::uint32_t encode_normal(glm::vec3 normal)
   const std::uint32_t sy = static_cast<std::uint32_t>(y & 0xffff) << 16;
   return sx | sy;
 }
+
 SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model& model) const
 {
   // NOTE: glTF assets can have pretty wonky data layouts which are not appropriate
@@ -301,8 +306,10 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
   }
   return result;
 }
+
 void SceneManager::uploadData(
-  std::span<const Vertex> vertices, std::span<const std::uint32_t> indices)
+  std::span<const Vertex> vertices, std::span<const std::uint32_t> indices,
+  std::span<const tinygltf::Image> imges)
 {
   unifiedVbuf = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
     .size = vertices.size_bytes(),
@@ -318,7 +325,25 @@ void SceneManager::uploadData(
   });
   transferHelper.uploadBuffer<Vertex>(*oneShotCommands, unifiedVbuf, 0, vertices);
   transferHelper.uploadBuffer<std::uint32_t>(*oneShotCommands, unifiedIbuf, 0, indices);
+  for (const tinygltf::Image& img : imges) {
+    images.emplace_back(std::move(etna::create_image_from_bytes(etna::Image::CreateInfo{
+        .extent = {static_cast<uint32_t>(img.width), static_cast<uint32_t>(img.height), 1},
+        .name = img.name,
+      },
+      oneShotCommands->start(),
+      img.image.data())
+    ));
+  }
+  unsigned char white_img[4] = {255, 255, 255, 255};
+  images.emplace_back(std::move(etna::create_image_from_bytes(etna::Image::CreateInfo{
+    .extent = {1, 1, 1},
+    .name = "white_img",
+  },
+  oneShotCommands->start(),
+  white_img)
+));
 }
+
 void SceneManager::selectScene(std::filesystem::path path)
 {
   auto maybeModel = loadModel(path);
@@ -332,11 +357,12 @@ void SceneManager::selectScene(std::filesystem::path path)
   auto [instMats, instMeshes] = processInstances(model);
   instanceMatrices = std::move(instMats);
   instanceMeshes = std::move(instMeshes);
-  auto [verts, inds, relems, meshs] = processMeshes(model);
+  auto [verts, inds, discard1, relems, meshs] = processMeshes(model);
   renderElements = std::move(relems);
   meshes = std::move(meshs);
   uploadData(verts, inds);
 }
+
 etna::VertexByteStreamFormatDescription SceneManager::getVertexFormatDescription()
 {
   return etna::VertexByteStreamFormatDescription{
@@ -352,6 +378,7 @@ etna::VertexByteStreamFormatDescription SceneManager::getVertexFormatDescription
       },
     }};
 }
+
 // ------ Below are the copypasted methods for HW7. ------
 SceneManager::ProcessedMeshes SceneManager::processMeshesCompressed(const tinygltf::Model& model) const
 {
@@ -370,12 +397,18 @@ SceneManager::ProcessedMeshes SceneManager::processMeshesCompressed(const tinygl
     memcpy(result.vertices.data(), model.buffers[0].data.data(), indexStart);
     memcpy(result.indices.data(), model.buffers[0].data.data() + indexStart, model.buffers[0].data.size() - indexStart);
   }
+
+  {
+    result.images = model.images;
+  }
+
   {
     std::size_t totalPrimitives = 0;
     for (const auto& mesh : model.meshes)
       totalPrimitives += mesh.primitives.size();
     result.relems.reserve(totalPrimitives);
   }
+
   result.meshes.reserve(model.meshes.size());
   for (const auto& mesh : model.meshes)
   {
@@ -412,10 +445,15 @@ SceneManager::ProcessedMeshes SceneManager::processMeshesCompressed(const tinygl
         hasTangents ? &model.accessors[accessorIndices[3]] : nullptr,
         hasTexcoord ? &model.accessors[accessorIndices[4]] : nullptr,
       };
+      Material mat =
+        prim.material == -1 ?
+          Material::none()
+        : Material(static_cast<Material::ImageId>(model.materials[prim.material].pbrMetallicRoughness.baseColorTexture.index));
       result.relems.push_back(RenderElement{
         .vertexOffset = static_cast<std::uint32_t>(model.bufferViews[accessors[1]->bufferView].byteOffset / sizeof(Vertex)),
         .indexOffset = static_cast<std::uint32_t>((model.bufferViews[accessors[0]->bufferView].byteOffset - indexStart) / sizeof(uint32_t)),
         .indexCount = static_cast<std::uint32_t>(accessors[0]->count),
+        .material = mat,
       });
       // Indices are guaranteed to have no stride
       ETNA_VERIFY(model.bufferViews[accessors[0]->bufferView].byteStride == 0);
@@ -423,6 +461,7 @@ SceneManager::ProcessedMeshes SceneManager::processMeshesCompressed(const tinygl
   }
   return result;
 }
+
 void SceneManager::selectSceneCompressed(std::filesystem::path path)
 {
   auto maybeModel = loadModel(path);
@@ -432,8 +471,8 @@ void SceneManager::selectSceneCompressed(std::filesystem::path path)
   auto [instMats, instMeshes] = processInstances(model);
   instanceMatrices = std::move(instMats);
   instanceMeshes = std::move(instMeshes);
-  auto [verts, inds, relems, meshs] = processMeshesCompressed(model);
+  auto [verts, inds, imgs, relems, meshs] = processMeshesCompressed(model);
   renderElements = std::move(relems);
   meshes = std::move(meshs);
-  uploadData(verts, inds);
+  uploadData(verts, inds, imgs);
 }
