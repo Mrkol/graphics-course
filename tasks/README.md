@@ -25,3 +25,5 @@
  15. [Биндлесс](bindless/)
  16. [Трава](grass/)
  17. [Террейн 2](terrain2/)
+ 18. [Мыло](aa/)
+ 19. [Screen-space Ambient Occlusion](ssao/)
