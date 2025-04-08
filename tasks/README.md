@@ -29,3 +29,4 @@
  19. [Screen-space Ambient Occlusion](ssao/)
  20. [Вода](water/)
  21. [Туман](fog/)
+ 22. [Глобальное освещение](gi/)
