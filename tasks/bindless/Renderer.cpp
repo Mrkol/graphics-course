@@ -21,10 +21,14 @@ void Renderer::initVulkan(std::span<const char*> instance_extensions)
 
   for (auto ext : instance_extensions)
     instanceExtensions.push_back(ext);
+  
+  instanceExtensions.push_back("VK_KHR_get_physical_device_properties2");
 
   std::vector<const char*> deviceExtensions;
 
   deviceExtensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+  deviceExtensions.push_back("VK_KHR_maintenance3");
+  deviceExtensions.push_back("VK_KHR_shader_draw_parameters");
   // deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   // deviceExtensions.push_back(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
 
@@ -34,14 +38,29 @@ void Renderer::initVulkan(std::span<const char*> instance_extensions)
   //   .dynamicRenderingLocalRead = VK_TRUE
   // };
 
+  vk::PhysicalDeviceVulkan12Features features12 {
+    .sType = vk::StructureType::ePhysicalDeviceVulkan12Features,
+    .pNext = NULL,
+    .shaderSampledImageArrayNonUniformIndexing = 1,
+    .descriptorBindingPartiallyBound = 1,
+    .descriptorBindingVariableDescriptorCount = 1,
+    .runtimeDescriptorArray = 1
+  };
+
+
   etna::initialize(etna::InitParams{
-    .applicationName = "model_bakery_renderer",
+    .applicationName = "bindless_renderer",
     .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
     .instanceExtensions = instanceExtensions,
     .deviceExtensions = deviceExtensions,
-    .features = vk::PhysicalDeviceFeatures2{.features = {
-      // dynamicLocalReadFeatures
-    }},
+    .features = vk::PhysicalDeviceFeatures2{
+      .sType = vk::StructureType::ePhysicalDeviceFeatures2,
+      .pNext = &features12,
+      .features = {
+        .multiDrawIndirect = 1,
+        .shaderSampledImageArrayDynamicIndexing = 1
+      }
+    },
     .physicalDeviceIndexOverride = {},
     .numFramesInFlight = 2,
   });

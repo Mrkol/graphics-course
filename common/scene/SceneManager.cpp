@@ -325,6 +325,8 @@ void SceneManager::uploadData(
   });
   transferHelper.uploadBuffer<Vertex>(*oneShotCommands, unifiedVbuf, 0, vertices);
   transferHelper.uploadBuffer<std::uint32_t>(*oneShotCommands, unifiedIbuf, 0, indices);
+  
+  images.clear();
   for (const tinygltf::Image& img : imges) {
     images.emplace_back(std::move(etna::create_image_from_bytes(etna::Image::CreateInfo{
         .extent = {static_cast<uint32_t>(img.width), static_cast<uint32_t>(img.height), 1},
