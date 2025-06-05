@@ -5,6 +5,7 @@
 #include <etna/RenderTargetStates.hpp>
 #include <etna/Profiling.hpp>
 #include <glm/ext.hpp>
+#include <imgui.h>
 
 
 PlaceholderTextureManager::PlaceholderTextureManager(vk::CommandBuffer cmd_buf) {
@@ -27,6 +28,7 @@ WorldRenderer::WorldRenderer()
   , transferHelper{etna::BlockingTransferHelper::CreateInfo{.stagingSize = 65536 * 4}}  // Not sure about size. Probably this is enough.
   , sceneMgr{std::make_unique<SceneManager>()}
   , placeholderTextureManager{oneShotCommands->start()}
+  , particleSystem{std::make_unique<ParticleSystem>()}
 {
 }
 
@@ -106,7 +108,10 @@ void WorldRenderer::setupPipelines(vk::Format swapchain_format)
           .colorAttachmentFormats = {swapchain_format},
           .depthAttachmentFormat = vk::Format::eD32Sfloat,
         },
-    });
+    }
+  );
+
+  particleSystem->setupPipeline(swapchain_format);
 }
 
 void WorldRenderer::debugInput(const Keyboard&) {}
@@ -130,7 +135,36 @@ void WorldRenderer::drawGui() {
 }
 
 void WorldRenderer::drawParticleEmittersGui() {
-  // TODO
+  std::optional<size_t> emitterToDelete;
+  bool needCreateEmitter = false;
+
+  for (size_t i = 0; i < particleSystem->emitters.size(); ++i) {
+    auto& e = particleSystem->emitters[i];
+
+    ImGui::PushID(&e);
+    if (ImGui::CollapsingHeader("ParticleEmitter")) {
+      float posInput[4] = {e.pos.x, e.pos.y, e.pos.z, 0};
+      ImGui::InputFloat3("Position", posInput);
+      e.pos = glm::vec3(posInput[0], posInput[1], posInput[2]);
+
+      if (ImGui::Button("Delete")) {
+        emitterToDelete = i;
+      }
+    }
+    ImGui::PopID();
+  }
+
+  if (ImGui::Button("+ New emitter")) {
+    needCreateEmitter = true;
+  }
+
+  if (emitterToDelete.has_value()) {
+    particleSystem->emitters.erase(particleSystem->emitters.begin() + emitterToDelete.value());
+  }
+
+  if (needCreateEmitter) {
+    particleSystem->emitters.emplace_back();
+  }
 }
 
 void WorldRenderer::refreshTextures(vk::CommandBuffer cmd_buf) {
@@ -332,7 +366,7 @@ void WorldRenderer::renderScene(
     sizeof(vk::DrawIndexedIndirectCommand)
   );
 
-  particleSystem->draw(cmd_buf);
+  particleSystem->draw(glob_tm, cmd_buf);
 }
 
 void WorldRenderer::renderWorld(

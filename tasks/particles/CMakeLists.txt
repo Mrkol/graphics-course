@@ -14,4 +14,6 @@ target_link_libraries(particles
 target_add_shaders(particles
   shaders/static_mesh.frag
   shaders/static_mesh.vert
+  shaders/particle.frag
+  shaders/particle.vert
 )
