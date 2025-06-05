@@ -38,7 +38,7 @@ void Renderer::initVulkan(std::span<const char*> instance_extensions)
 
   vk::PhysicalDeviceVulkan12Features features12 {
     .sType = vk::StructureType::ePhysicalDeviceVulkan12Features,
-    .pNext = NULL,
+    .pNext = nullptr,
     .shaderSampledImageArrayNonUniformIndexing = 1,
     .descriptorBindingPartiallyBound = 1,
     .descriptorBindingVariableDescriptorCount = 1,
@@ -121,12 +121,12 @@ void Renderer::drawGui() {
   ImGui::Begin("Simple render settings");
 
   auto inputPathText = [](std::filesystem::path& path, const char* name) {
-    char path_input[4096];
+    char pathInput[4096];
     // Couldn't get it all to work with cyrillic characters, so ASCII it is.
     std::string pathAsString = path.string();
-    strcpy_s(path_input, sizeof(path_input), (const char*)pathAsString.c_str());
-    ImGui::InputText(name, path_input, sizeof(path_input));
-    path = std::filesystem::path(path_input);
+    strcpy_s(pathInput, sizeof(pathInput), (const char*)pathAsString.c_str());
+    ImGui::InputText(name, pathInput, sizeof(pathInput));
+    path = std::filesystem::path(pathInput);
 
     ImGui::SetItemTooltip("Please, only use ASCII paths.");
   };
@@ -143,6 +143,8 @@ void Renderer::drawGui() {
     ImGui::GetIO().Framerate);
 
   ImGui::NewLine();
+
+  worldRenderer->drawGui();
 
   ImGui::TextColored(ImVec4(1.0f, 1.0f, 0.0f, 1.0f), "Press 'B' to recompile and reload shaders");
   ImGui::End();

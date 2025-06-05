@@ -8,16 +8,16 @@
 
 
 PlaceholderTextureManager::PlaceholderTextureManager(vk::CommandBuffer cmd_buf) {
-  unsigned char white_img[4] = {255, 255, 255, 255};
+  unsigned char whiteImg[4] = {255, 255, 255, 255};
   for (int i = 0; i < 32; ++i) {
     textures.emplace_back(
-      std::move(etna::create_image_from_bytes(etna::Image::CreateInfo{
+      etna::create_image_from_bytes(etna::Image::CreateInfo{
         .extent = {1, 1, 1},
         .name = "placeholder_img",
       },
       cmd_buf,
-      white_img)
-    ));
+      whiteImg)
+    );
   }
 }
 
@@ -120,9 +120,20 @@ void WorldRenderer::update(const FramePacket& packet)
     const float aspect = float(resolution.x) / float(resolution.y);
     worldViewProj = packet.mainCam.projTm(aspect) * packet.mainCam.viewTm();
   }
+
+  particleSystem->update(packet.mainCam.position, packet.currentTime - lastUpdateTime);
+  lastUpdateTime = packet.currentTime;
 }
 
-void WorldRenderer::refresh_textures(vk::CommandBuffer cmd_buf) {
+void WorldRenderer::drawGui() {
+  drawParticleEmittersGui();
+}
+
+void WorldRenderer::drawParticleEmittersGui() {
+  // TODO
+}
+
+void WorldRenderer::refreshTextures(vk::CommandBuffer cmd_buf) {
   auto images = sceneMgr->getImages();
 
   if (texturesDirty) {
@@ -161,13 +172,13 @@ void WorldRenderer::refresh_textures(vk::CommandBuffer cmd_buf) {
       );
     }
 
-    size_t commands_amount = 0;
+    size_t commandsAmount = 0;
     {
       auto instanceMeshes = sceneMgr->getInstanceMeshes();
       auto meshes = sceneMgr->getMeshes();
       for (std::size_t instIdx = 0; instIdx < instanceMeshes.size(); ++instIdx)
       {
-        commands_amount += meshes[instanceMeshes[instIdx]].relemCount;
+        commandsAmount += meshes[instanceMeshes[instIdx]].relemCount;
       }
     }
 
@@ -206,13 +217,13 @@ void WorldRenderer::refresh_textures(vk::CommandBuffer cmd_buf) {
     etna::get_context().getDescriptorSetLayouts().registerLayout(etna::get_context().getDevice(), drawParamsBufInfo);
 
     drawCommandsBuffer = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
-      .size = sizeof(vk::DrawIndexedIndirectCommand) * commands_amount,
+      .size = sizeof(vk::DrawIndexedIndirectCommand) * commandsAmount,
       .bufferUsage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndirectBuffer,
       .name = "draw_commands_buffer"
     });
 
     drawParamsBuffer = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
-      .size = sizeof(DrawParams) * commands_amount,
+      .size = sizeof(DrawParams) * commandsAmount,
       .bufferUsage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eStorageBuffer,
       .name = "draw_params_buffer"
     });
@@ -282,51 +293,25 @@ void WorldRenderer::renderScene(
 
   auto meshes = sceneMgr->getMeshes();
   auto relems = sceneMgr->getRenderElements();
-  /*
-  auto images = sceneMgr->getImages();
-
-  std::vector<etna::DescriptorSet> texturesDescriptorSets;
-  for (auto& img : images) {
-    texturesDescriptorSets.push_back(etna::create_descriptor_set(
-      etna::get_shader_program("static_mesh_material").getDescriptorLayoutId(0),
-      cmd_buf,
-      {
-        etna::Binding{0, img.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}
-      }
-    ));
-  }
-  */
 
   drawCommands.clear();
   drawParams.clear();
 
   for (std::size_t instIdx = 0; instIdx < instanceMeshes.size(); ++instIdx)
   {
-    // pushConst2M.model = instanceMatrices[instIdx];
-
     const auto meshIdx = instanceMeshes[instIdx];
 
     for (std::size_t j = 0; j < meshes[meshIdx].relemCount; ++j)
     {
       const auto relemIdx = meshes[meshIdx].firstRelem + j;
       const auto& relem = relems[relemIdx];
-      // auto& img = relem.material.albedoId == Material::ImageId::Invalid ? images.back() : images[static_cast<uint32_t>(relem.material.albedoId)];
-      // auto& set = relem.material.albedoId == Material::ImageId::Invalid ? texturesDescriptorSets.back() : texturesDescriptorSets[static_cast<uint32_t>(relem.material.albedoId)];
-
-      // {
-      //   vk::DescriptorSet vkSet = set.getVkSet();
-      //   cmd_buf.bindDescriptorSets(
-      //     vk::PipelineBindPoint::eGraphics, staticMeshPipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
-      // }
-
-      // pushConst2M.relemIdx = static_cast<int32_t>(relemIdx);
 
       drawParams.push_back({
         .model = instanceMatrices[instIdx],
-        .relemIdx = static_cast<int32_t>(relemIdx)
+        .relemIdx = static_cast<int32_t>(relemIdx),
+        .padding={0, 0, 0}
       });
       
-      // cmd_buf.drawIndexed(relem.indexCount, 1, relem.indexOffset, relem.vertexOffset, 0);
       drawCommands.push_back(vk::DrawIndexedIndirectCommand{
         relem.indexCount,
         1,
@@ -346,6 +331,8 @@ void WorldRenderer::renderScene(
     static_cast<uint32_t>(drawCommands.size()),
     sizeof(vk::DrawIndexedIndirectCommand)
   );
+
+  particleSystem->draw(cmd_buf);
 }
 
 void WorldRenderer::renderWorld(
@@ -357,7 +344,7 @@ void WorldRenderer::renderWorld(
   {
     ETNA_PROFILE_GPU(cmd_buf, renderForward);
 
-    refresh_textures(cmd_buf);
+    refreshTextures(cmd_buf);
 
     etna::RenderTargetState renderTargets(
       cmd_buf,

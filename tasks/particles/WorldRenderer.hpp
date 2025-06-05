@@ -6,6 +6,7 @@
 #include <etna/GraphicsPipeline.hpp>
 #include <glm/glm.hpp>
 
+#include "ParticleSystem.hpp"
 #include "scene/SceneManager.hpp"
 #include "wsi/Keyboard.hpp"
 
@@ -15,7 +16,7 @@
 struct PlaceholderTextureManager {
   std::vector<etna::Image> textures;
 
-  PlaceholderTextureManager(vk::CommandBuffer cmd_buf);
+  explicit PlaceholderTextureManager(vk::CommandBuffer cmd_buf);
 };
 
 
@@ -41,10 +42,12 @@ public:
     vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view);
 
 private:
-  void refresh_textures(vk::CommandBuffer cmd_buf);
+  void refreshTextures(vk::CommandBuffer cmd_buf);
   void renderScene(
     vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout);
 
+  void makeStartingParticleEmitters();
+  void drawParticleEmittersGui();
 
 private:
   std::unique_ptr<etna::OneShotCmdMgr> oneShotCommands;
@@ -61,8 +64,11 @@ private:
   std::vector<etna::Binding> bindings;
   std::vector<int> relemToTextureMapCPU;
   bool texturesDirty;
+  float lastUpdateTime;
 
   PlaceholderTextureManager placeholderTextureManager;
+
+  std::unique_ptr<ParticleSystem> particleSystem;
   
   std::vector<vk::DrawIndexedIndirectCommand> drawCommands;
   etna::Buffer drawCommandsBuffer;

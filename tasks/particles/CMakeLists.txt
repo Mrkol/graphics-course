@@ -3,6 +3,7 @@ add_executable(particles
   App.cpp
   Renderer.cpp
   WorldRenderer.cpp
+  ParticleSystem.cpp
 )
 
 target_include_directories(particles PUBLIC baker)
