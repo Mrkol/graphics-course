@@ -7,19 +7,37 @@
 
 layout(push_constant) uniform params_t
 {
-  vec4 up;
-  vec4 right;
-  vec4 pos;
+  vec4 camPos;
   mat4x4 viewProj;
 } params;
 
 
+struct QuadParams {
+  vec4 posAndAngle;
+  vec4 color;
+};
+
+layout(set=0, binding=0) readonly buffer quadParams{
+  QuadParams quad_params[];
+};
+
+
+layout(location = 0) out vec4 color;
+
+
 void main(void)
 {
+  color = quad_params[gl_InstanceIndex].color;
+
   vec4 res;
-  vec4 p = params.pos;
-  vec4 u = params.up;
-  vec4 r = params.right;
+  vec4 p = quad_params[gl_InstanceIndex].posAndAngle;
+  vec3 look = params.camPos.xyz - p.xyz;
+  vec4 r_notRotated = vec4(normalize(cross(vec3(0, 1, 0), look)) * 0.02, 1);
+  vec4 u_notRotated = vec4(normalize(cross(r_notRotated.xyz, look)) * 0.02, 1);
+
+  float angle = quad_params[gl_InstanceIndex].posAndAngle.w;
+  vec4 r = r_notRotated * cos(angle) + u_notRotated * sin(angle);
+  vec4 u = u_notRotated * cos(angle) - r_notRotated * sin(angle);
 
   if (gl_VertexIndex == 0) {
     res = p - r - u;

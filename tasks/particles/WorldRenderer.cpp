@@ -143,9 +143,60 @@ void WorldRenderer::drawParticleEmittersGui() {
 
     ImGui::PushID(&e);
     if (ImGui::CollapsingHeader("ParticleEmitter")) {
+      float spawnInput[4] = {e.spawnZoneExtent.x, e.spawnZoneExtent.y, e.spawnZoneExtent.z, 0};
+      ImGui::InputFloat3("Spawn zone extent", spawnInput);
+      e.spawnZoneExtent = glm::max(glm::vec3(spawnInput[0], spawnInput[1], spawnInput[2]), glm::vec3(0));
+
+      ImGui::InputFloat("Spawn rate", &(e.spawnFrequency));
+      e.spawnFrequency = glm::max(e.spawnFrequency, 0.0f);
+
       float posInput[4] = {e.pos.x, e.pos.y, e.pos.z, 0};
       ImGui::InputFloat3("Position", posInput);
       e.pos = glm::vec3(posInput[0], posInput[1], posInput[2]);
+
+      float velMinInput[4] = {e.startVelocityMin.x, e.startVelocityMin.y, e.startVelocityMin.z, 0};
+      ImGui::InputFloat3("Start velocity minimum", velMinInput);
+      e.startVelocityMin = glm::min(glm::vec3(velMinInput[0], velMinInput[1], velMinInput[2]), e.startVelocityMax);
+
+      float velMaxInput[4] = {e.startVelocityMax.x, e.startVelocityMax.y, e.startVelocityMax.z, 0};
+      ImGui::InputFloat3("Start velocity maximum", velMaxInput);
+      e.startVelocityMax = glm::max(glm::vec3(velMaxInput[0], velMaxInput[1], velMaxInput[2]), e.startVelocityMin);
+
+      float accInput[4] = {e.acceleration.x, e.acceleration.y, e.acceleration.z, 0};
+      ImGui::InputFloat3("Acceleration", accInput);
+      e.acceleration = glm::vec3(accInput[0], accInput[1], accInput[2]);
+
+      ImGui::InputFloat("Rotation speed minimum", &(e.rotationSpeedMin));
+      e.rotationSpeedMin = glm::min(e.rotationSpeedMin, e.rotationSpeedMax);
+
+      ImGui::InputFloat("Rotation speed maximum", &(e.rotationSpeedMax));
+      e.rotationSpeedMin = glm::max(e.rotationSpeedMax, e.rotationSpeedMin);
+
+      float startColorInput[4] = {e.startColor.r, e.startColor.g, e.startColor.b, e.startColor.a};
+      ImGui::ColorPicker4("Start color", startColorInput);
+      e.startColor = glm::vec4(startColorInput[0], startColorInput[1], startColorInput[2], startColorInput[3]);
+
+      float endColorInput[4] = {e.endColor.r, e.endColor.g, e.endColor.b, e.endColor.a};
+      ImGui::ColorPicker4("End color", endColorInput);
+      e.endColor = glm::vec4(endColorInput[0], endColorInput[1], endColorInput[2], endColorInput[3]);
+
+      // ImGui::SeparatorText("Texture");
+      // {
+      //   char pathInput[4096];
+      //   // Couldn't get it all to work with cyrillic characters, so ASCII it is.
+      //   std::string pathAsString = e.texture_path.string();
+      //   strcpy_s(pathInput, sizeof(pathInput), (const char*)pathAsString.c_str());
+      //   ImGui::InputText("Path to particle texture", pathInput, sizeof(pathInput));
+      //   e.texture_path = std::filesystem::path(pathInput);
+      //   ImGui::SetItemTooltip("Please, only use ASCII paths.");
+      // }
+
+      // if (ImGui::Button("Load texture")) {
+      //   e.loadTextureByPath();
+      // }
+
+      ImGui::InputFloat("Particle lifetime", &(e.particleLifetime));
+      e.particleLifetime = glm::max(e.particleLifetime, 0.0f);
 
       if (ImGui::Button("Delete")) {
         emitterToDelete = i;
@@ -245,10 +296,10 @@ void WorldRenderer::refreshTextures(vk::CommandBuffer cmd_buf) {
       .stageFlags=vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment,
       .pImmutableSamplers=nullptr
     });
-    etna::get_context().getDescriptorSetLayouts().clear(etna::get_context().getDevice());
-    etna::get_context().getDescriptorSetLayouts().registerLayout(etna::get_context().getDevice(), texArrayInfo);
-    etna::get_context().getDescriptorSetLayouts().registerLayout(etna::get_context().getDevice(), relemMapBufInfo);
-    etna::get_context().getDescriptorSetLayouts().registerLayout(etna::get_context().getDevice(), drawParamsBufInfo);
+    // etna::get_context().getDescriptorSetLayouts().clear(etna::get_context().getDevice());
+    // etna::get_context().getDescriptorSetLayouts().registerLayout(etna::get_context().getDevice(), texArrayInfo);
+    // etna::get_context().getDescriptorSetLayouts().registerLayout(etna::get_context().getDevice(), relemMapBufInfo);
+    // etna::get_context().getDescriptorSetLayouts().registerLayout(etna::get_context().getDevice(), drawParamsBufInfo);
 
     drawCommandsBuffer = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
       .size = sizeof(vk::DrawIndexedIndirectCommand) * commandsAmount,
