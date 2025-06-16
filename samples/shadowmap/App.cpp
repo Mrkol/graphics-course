@@ -43,7 +43,7 @@ App::App()
   shadowCam.lookAt({-8, 10, 8}, {0, 0, 0}, {0, 1, 0});
   mainCam.lookAt({0, 10, 10}, {0, 0, 0}, {0, 1, 0});
 
-  renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/low_poly_dark_town/scene.gltf");
+  renderer->loadScene(GRAPHICS_COURSE_RESOURCES_ROOT "/scenes/Avocado/Avocado_baked.gltf"); ///scenes/low_poly_dark_town/scene.gltf
 }
 
 void App::run()
@@ -75,7 +75,7 @@ void App::processInput(float dt)
   if (is_held_down(mainWindow->keyboard[KeyboardKey::kLeftShift]))
     camMoveSpeed = 10;
   else
-    camMoveSpeed = 1;
+    camMoveSpeed = 0.1f;
 
   if (mainWindow->keyboard[KeyboardKey::kL] == ButtonState::Falling)
     controlShadowCam = !controlShadowCam;
