@@ -13,7 +13,6 @@
 
 #include "FramePacket.hpp"
 
-
 /**
  * The meat of the sample. All things you see on the screen are contained within this class.
  * This what you want to change and expand between different samples.
@@ -26,7 +25,7 @@ public:
   void loadScene(std::filesystem::path path);
 
   void loadShaders();
-  void allocateResources(glm::uvec2 swapchain_resolution);
+  void allocateResources(glm::uvec2 swapchain_resolution, vk::Format swapchain_format); // Modified
   void setupPipelines(vk::Format swapchain_format);
 
   void debugInput(const Keyboard& kb);
@@ -39,12 +38,12 @@ private:
   void renderScene(
     vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout);
 
-
 private:
   std::unique_ptr<SceneManager> sceneMgr;
 
   etna::Image mainViewDepth;
   etna::Image shadowMap;
+  etna::Image intermediateTarget;
   etna::Sampler defaultSampler;
   etna::Buffer constants;
 
@@ -53,6 +52,14 @@ private:
     glm::mat4x4 projView;
     glm::mat4x4 model;
   } pushConst2M;
+
+  struct FxaaPushConstants
+  {
+    glm::vec2 rcpFrame;
+    float subpix = 0.75f;
+    float edgeThreshold = 0.125f;
+    float edgeThresholdMin = 0.0833f;
+  } fxaaPushConst;
 
   glm::mat4x4 worldViewProj;
   glm::mat4x4 lightMatrix;
@@ -74,9 +81,12 @@ private:
 
   etna::GraphicsPipeline basicForwardPipeline{};
   etna::GraphicsPipeline shadowPipeline{};
+  etna::GraphicsPipeline fxaaPipeline{};
 
   std::unique_ptr<QuadRenderer> quadRenderer;
   bool drawDebugFSQuad = false;
+  bool enableFxaa = false;
 
   glm::uvec2 resolution;
+  vk::Format swapchainFormat; // Added
 };
