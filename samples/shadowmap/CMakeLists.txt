@@ -12,4 +12,6 @@ target_link_libraries(shadowmap
 target_add_shaders(shadowmap
   shaders/simple.vert
   shaders/simple_shadow.frag
+  shaders/fxaa.vert
+  shaders/fxaa.frag
 )
