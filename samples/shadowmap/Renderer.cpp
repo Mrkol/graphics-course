@@ -58,7 +58,7 @@ void Renderer::initFrameDelivery(vk::UniqueSurfaceKHR a_surface, ResolutionProvi
 
   worldRenderer = std::make_unique<WorldRenderer>();
 
-  worldRenderer->allocateResources(resolution);
+  worldRenderer->allocateResources(resolution, window->getCurrentFormat()); // Updated
   worldRenderer->loadShaders();
   worldRenderer->setupPipelines(window->getCurrentFormat());
 
@@ -77,10 +77,7 @@ void Renderer::recreateSwapchain(glm::uvec2 res)
   });
   resolution = {w, h};
 
-  // Most resources depend on the current resolution, so we recreate them.
-  worldRenderer->allocateResources(resolution);
-
-  // Format of the swapchain CAN change on android
+  worldRenderer->allocateResources(resolution, window->getCurrentFormat()); // Updated
   worldRenderer->setupPipelines(window->getCurrentFormat());
 }
 
