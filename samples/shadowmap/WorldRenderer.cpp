@@ -7,15 +7,24 @@
 #include <glm/ext.hpp>
 #include <imgui.h>
 
+#include "WorldRenderer.hpp"
+
+#include <etna/GlobalContext.hpp>
+#include <etna/PipelineManager.hpp>
+#include <etna/RenderTargetStates.hpp>
+#include <etna/Profiling.hpp>
+#include <glm/ext.hpp>
+#include <imgui.h>
 
 WorldRenderer::WorldRenderer()
   : sceneMgr{std::make_unique<SceneManager>()}
 {
 }
 
-void WorldRenderer::allocateResources(glm::uvec2 swapchain_resolution)
+void WorldRenderer::allocateResources(glm::uvec2 swapchain_resolution, vk::Format swapchain_format)
 {
   resolution = swapchain_resolution;
+  swapchainFormat = swapchain_format; // Store format
 
   auto& ctx = etna::get_context();
 
@@ -32,6 +41,13 @@ void WorldRenderer::allocateResources(glm::uvec2 swapchain_resolution)
     .format = vk::Format::eD16Unorm,
     .imageUsage =
       vk::ImageUsageFlagBits::eDepthStencilAttachment | vk::ImageUsageFlagBits::eSampled,
+  });
+
+  intermediateTarget = ctx.createImage(etna::Image::CreateInfo{
+    .extent = vk::Extent3D{resolution.x, resolution.y, 1},
+    .name = "intermediate_target",
+    .format = swapchain_format, // Use swapchain format
+    .imageUsage = vk::ImageUsageFlagBits::eColorAttachment | vk::ImageUsageFlagBits::eSampled,
   });
 
   defaultSampler = etna::Sampler(etna::Sampler::CreateInfo{.name = "default_sampler"});
@@ -56,6 +72,8 @@ void WorldRenderer::loadShaders()
     "simple_material",
     {SHADOWMAP_SHADERS_ROOT "simple_shadow.frag.spv", SHADOWMAP_SHADERS_ROOT "simple.vert.spv"});
   etna::create_program("simple_shadow", {SHADOWMAP_SHADERS_ROOT "simple.vert.spv"});
+  etna::create_program(
+    "fxaa", {SHADOWMAP_SHADERS_ROOT "fxaa.frag.spv", SHADOWMAP_SHADERS_ROOT "fxaa.vert.spv"});
 }
 
 void WorldRenderer::setupPipelines(vk::Format swapchain_format)
@@ -70,7 +88,6 @@ void WorldRenderer::setupPipelines(vk::Format swapchain_format)
       .byteStreamDescription = sceneMgr->getVertexFormatDescription(),
     }},
   };
-
 
   auto& pipelineManager = etna::get_context().getPipelineManager();
 
@@ -108,6 +125,25 @@ void WorldRenderer::setupPipelines(vk::Format swapchain_format)
       .fragmentShaderOutput =
         {
           .depthAttachmentFormat = vk::Format::eD16Unorm,
+        },
+    });
+
+  fxaaPipeline = {};
+  fxaaPipeline = pipelineManager.createGraphicsPipeline(
+    "fxaa",
+    etna::GraphicsPipeline::CreateInfo{
+      .vertexShaderInput = {}, // No vertex input for full-screen quad
+      .rasterizationConfig =
+        vk::PipelineRasterizationStateCreateInfo{
+          .polygonMode = vk::PolygonMode::eFill,
+          .cullMode = vk::CullModeFlagBits::eNone,
+          .frontFace = vk::FrontFace::eCounterClockwise,
+          .lineWidth = 1.f,
+        },
+      .fragmentShaderOutput =
+        {
+          .colorAttachmentFormats = {swapchain_format},
+          .depthAttachmentFormat = {}, // No depth for post-processing
         },
     });
 }
@@ -157,6 +193,102 @@ void WorldRenderer::update(const FramePacket& packet)
 
     std::memcpy(constants.data(), &uniformParams, sizeof(uniformParams));
   }
+
+  // Update FXAA push constants
+  {
+    fxaaPushConst.rcpFrame = glm::vec2(1.0f / resolution.x, 1.0f / resolution.y);
+  }
+}
+
+void WorldRenderer::renderWorld(
+  vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view)
+{
+  ETNA_PROFILE_GPU(cmd_buf, renderWorld);
+
+  // Draw scene to shadowmap
+  {
+    ETNA_PROFILE_GPU(cmd_buf, renderShadowMap);
+
+    etna::RenderTargetState renderTargets(
+      cmd_buf,
+      {{0, 0}, {2048, 2048}},
+      {},
+      {.image = shadowMap.get(), .view = shadowMap.getView({})});
+
+    cmd_buf.bindPipeline(vk::PipelineBindPoint::eGraphics, shadowPipeline.getVkPipeline());
+    renderScene(cmd_buf, lightMatrix, shadowPipeline.getVkPipelineLayout());
+  }
+
+  // Draw scene to intermediate target (or directly to swapchain if FXAA is disabled)
+  {
+    ETNA_PROFILE_GPU(cmd_buf, renderForward);
+
+    auto simpleMaterialInfo = etna::get_shader_program("simple_material");
+
+    auto set = etna::create_descriptor_set(
+      simpleMaterialInfo.getDescriptorLayoutId(0),
+      cmd_buf,
+      {etna::Binding{0, constants.genBinding()},
+       etna::Binding{
+         1, shadowMap.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
+
+    vk::Image target = enableFxaa ? intermediateTarget.get() : target_image;
+    vk::ImageView target_view = enableFxaa ? intermediateTarget.getView({}) : target_image_view;
+
+    etna::RenderTargetState renderTargets(
+      cmd_buf,
+      {{0, 0}, {resolution.x, resolution.y}},
+      {{.image = target, .view = target_view}},
+      {.image = mainViewDepth.get(), .view = mainViewDepth.getView({})});
+
+    cmd_buf.bindPipeline(vk::PipelineBindPoint::eGraphics, basicForwardPipeline.getVkPipeline());
+    cmd_buf.bindDescriptorSets(
+      vk::PipelineBindPoint::eGraphics,
+      basicForwardPipeline.getVkPipelineLayout(),
+      0,
+      {set.getVkSet()},
+      {});
+
+    renderScene(cmd_buf, worldViewProj, basicForwardPipeline.getVkPipelineLayout());
+  }
+
+  // Apply FXAA if enabled
+  if (enableFxaa)
+  {
+    ETNA_PROFILE_GPU(cmd_buf, renderFxaa);
+
+    auto fxaaProgramInfo = etna::get_shader_program("fxaa");
+
+    auto set = etna::create_descriptor_set(
+      fxaaProgramInfo.getDescriptorLayoutId(0),
+      cmd_buf,
+      {etna::Binding{
+        0,
+        intermediateTarget.genBinding(
+          defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
+
+    etna::RenderTargetState renderTargets(
+      cmd_buf,
+      {{0, 0}, {resolution.x, resolution.y}},
+      {{.image = target_image, .view = target_image_view}},
+      {});
+
+    cmd_buf.bindPipeline(vk::PipelineBindPoint::eGraphics, fxaaPipeline.getVkPipeline());
+    cmd_buf.bindDescriptorSets(
+      vk::PipelineBindPoint::eGraphics,
+      fxaaPipeline.getVkPipelineLayout(),
+      0,
+      {set.getVkSet()},
+      {});
+
+    cmd_buf.pushConstants<FxaaPushConstants>(
+      fxaaPipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, {fxaaPushConst});
+
+    cmd_buf.draw(3, 1, 0, 0); // Draw full-screen triangle
+  }
+
+  if (drawDebugFSQuad)
+    quadRenderer->render(cmd_buf, target_image, target_image_view, shadowMap, defaultSampler);
 }
 
 void WorldRenderer::renderScene(
@@ -194,61 +326,6 @@ void WorldRenderer::renderScene(
   }
 }
 
-void WorldRenderer::renderWorld(
-  vk::CommandBuffer cmd_buf, vk::Image target_image, vk::ImageView target_image_view)
-{
-  ETNA_PROFILE_GPU(cmd_buf, renderWorld);
-
-  // draw scene to shadowmap
-
-  {
-    ETNA_PROFILE_GPU(cmd_buf, renderShadowMap);
-
-    etna::RenderTargetState renderTargets(
-      cmd_buf,
-      {{0, 0}, {2048, 2048}},
-      {},
-      {.image = shadowMap.get(), .view = shadowMap.getView({})});
-
-    cmd_buf.bindPipeline(vk::PipelineBindPoint::eGraphics, shadowPipeline.getVkPipeline());
-    renderScene(cmd_buf, lightMatrix, shadowPipeline.getVkPipelineLayout());
-  }
-
-  // draw final scene to screen
-
-  {
-    ETNA_PROFILE_GPU(cmd_buf, renderForward);
-
-    auto simpleMaterialInfo = etna::get_shader_program("simple_material");
-
-    auto set = etna::create_descriptor_set(
-      simpleMaterialInfo.getDescriptorLayoutId(0),
-      cmd_buf,
-      {etna::Binding{0, constants.genBinding()},
-       etna::Binding{
-         1, shadowMap.genBinding(defaultSampler.get(), vk::ImageLayout::eShaderReadOnlyOptimal)}});
-
-    etna::RenderTargetState renderTargets(
-      cmd_buf,
-      {{0, 0}, {resolution.x, resolution.y}},
-      {{.image = target_image, .view = target_image_view}},
-      {.image = mainViewDepth.get(), .view = mainViewDepth.getView({})});
-
-    cmd_buf.bindPipeline(vk::PipelineBindPoint::eGraphics, basicForwardPipeline.getVkPipeline());
-    cmd_buf.bindDescriptorSets(
-      vk::PipelineBindPoint::eGraphics,
-      basicForwardPipeline.getVkPipelineLayout(),
-      0,
-      {set.getVkSet()},
-      {});
-
-    renderScene(cmd_buf, worldViewProj, basicForwardPipeline.getVkPipelineLayout());
-  }
-
-  if (drawDebugFSQuad)
-    quadRenderer->render(cmd_buf, target_image, target_image_view, shadowMap, defaultSampler);
-}
-
 void WorldRenderer::drawGui()
 {
   ImGui::Begin("Simple render settings");
@@ -261,6 +338,8 @@ void WorldRenderer::drawGui()
   float pos[3]{uniformParams.lightPos.x, uniformParams.lightPos.y, uniformParams.lightPos.z};
   ImGui::SliderFloat3("Light source position", pos, -10.f, 10.f);
   uniformParams.lightPos = {pos[0], pos[1], pos[2]};
+
+  ImGui::Checkbox("Enable FXAA", &enableFxaa); // Added FXAA toggle
 
   ImGui::Text(
     "Application average %.3f ms/frame (%.1f FPS)",
