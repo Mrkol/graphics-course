@@ -24,11 +24,12 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Prepare Vulkan SDK
-      uses: humbletim/install-vulkan-sdk@v1.2
+    - name: Configure Vulkan SDK
+      uses: humbletim/setup-vulkan-sdk@v1.2.1
       with:
-        version: 1.4.321.1
-        cache: true
+        vulkan-query-version: 1.4.321.1
+        vulkan-components: Vulkan-Headers, Vulkan-Loader, SPIRV-Tools, Glslang
+        vulkan-use-cache: true
 
     - name: Install CMake
       uses: ssrobins/install-cmake@v1
