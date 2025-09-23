@@ -9,10 +9,10 @@
 
 Чтобы создать приватный форк необходимо создать пустой приватный репозиторий и вручную добавить этот репозиторий как дополнительный ремоут.
 
-- git remote add upstream https://github.com/Mrkol/graphics-course.git
-- git remote set-url --push upstream DISABLE
-- git fetch upstream
-- git rebase upstream/master
+- `git remote add upstream https://github.com/Mrkol/graphics-course.git`
+- `git remote set-url --push upstream DISABLE`
+- `git fetch upstream`
+- `git rebase upstream/master`
 
 Повторяйте последние 2 команды чтобы обновиться на более новую версию репозитория.
 
