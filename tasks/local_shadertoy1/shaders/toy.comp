@@ -231,9 +231,9 @@ void mainImage(out vec4 fragColor, in vec2 fragCoord) {
 
 void main () {
     ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
-    
     // TODO: Put your shadertoy code here!
     // Simple gradient as a test.
+    
     if (uv.x < iResolution().x && uv.y < iResolution().y) {
         vec4 color;
     
