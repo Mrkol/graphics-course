@@ -30,9 +30,9 @@ jobs:
         cmake_command: | # Awful, dirty hacks to get the vulkan-sdk and cmake version we need
           wget -qO- https://packages.lunarg.com/lunarg-signing-key-pub.asc | \
             tee /etc/apt/trusted.gpg.d/lunarg.asc && \
-          wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.4.321.1-jammy.list \
-            https://packages.lunarg.com/vulkan/1.4.321.1/lunarg-vulkan-1.4.321.1-jammy.list && \
-          echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main'\
+          wget -qO /etc/apt/sources.list.d/lunarg-vulkan-1.4.313-noble.list \
+            https://packages.lunarg.com/vulkan/1.4.313/lunarg-vulkan-1.4.313-noble.list && \
+          echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ noble main'\
             | sudo tee /etc/apt/sources.list.d/kitware.list >/dev/null && \
           apt update && \
           apt-get -y install libvulkan-dev vulkan-headers cmake && \
