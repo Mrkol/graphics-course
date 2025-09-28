@@ -42,4 +42,4 @@ jobs:
 
     # Upload review results as artifacts, a different workflow posts them
     # as comments. This is required due to security stuff.
-    - uses: ZedThree/clang-tidy-review/upload@v0.14.0 # v0.17 is buggy
+    - uses: ZedThree/clang-tidy-review/upload@v0.21.0
