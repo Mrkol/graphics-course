@@ -22,7 +22,7 @@ jobs:
         clang-format-version: '17'
         fallback-style: 'none'
 
-    - uses: ZedThree/clang-tidy-review@v0.14.0 # v0.17 is buggy
+    - uses: ZedThree/clang-tidy-review@v0.21.0
       id: review
       with:
         apt_packages: 'wget,libx11-dev'
