@@ -14,6 +14,7 @@ CPMAddPackage(
 
 # Cross-platform 3D graphics
 find_package(Vulkan 1.4.300 REQUIRED)
+# find_package(Vulkan REQUIRED)
 
 # Dear ImGui -- easiest way to do GUI
 CPMAddPackage(
