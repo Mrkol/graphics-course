@@ -101,7 +101,7 @@ void Renderer::drawFrame()
 
   if (nextSwapchainImage)
   {
-    auto [image, view, availableSem] = *nextSwapchainImage;
+    auto [image, view, availableSem, readyForPresentSem] = *nextSwapchainImage;
 
     ETNA_CHECK_VK_RESULT(currentCmdBuf.begin(vk::CommandBufferBeginInfo{}));
     {
@@ -123,7 +123,8 @@ void Renderer::drawFrame()
     }
     ETNA_CHECK_VK_RESULT(currentCmdBuf.end());
 
-    auto renderingDone = commandManager->submit(std::move(currentCmdBuf), std::move(availableSem));
+    auto renderingDone = commandManager->submit(
+      std::move(currentCmdBuf), std::move(availableSem), std::move(readyForPresentSem));
 
     const bool presented = window->present(std::move(renderingDone), view);
 
