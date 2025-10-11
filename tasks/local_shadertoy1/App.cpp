@@ -61,6 +61,7 @@ App::App()
     auto [w, h] = vkWindow->recreateSwapchain(etna::Window::DesiredProperties{
       .resolution = {resolution.x, resolution.y},
       .vsync = useVsync,
+      .numFramesInFlight = static_cast<uint32_t>(commandManager->getCmdBufferCount()),
     });
 
     // Technically, Vulkan might fail to initialize a swapchain with the requested
@@ -184,6 +185,7 @@ void App::drawFrame()
     auto [w, h] = vkWindow->recreateSwapchain(etna::Window::DesiredProperties{
       .resolution = {resolution.x, resolution.y},
       .vsync = useVsync,
+      .numFramesInFlight = static_cast<uint32_t>(commandManager->getCmdBufferCount()),
     });
     ETNA_VERIFY((resolution == glm::uvec2{w, h}));
   }

@@ -49,6 +49,7 @@ void Renderer::initFrameDelivery(vk::UniqueSurfaceKHR a_surface, ResolutionProvi
   auto [w, h] = window->recreateSwapchain(etna::Window::DesiredProperties{
     .resolution = {resolution.x, resolution.y},
     .vsync = useVsync,
+    .numFramesInFlight = static_cast<uint32_t>(commandManager->getCmdBufferCount()),
   });
 
   resolution = {w, h};
@@ -137,6 +138,7 @@ void Renderer::drawFrame()
     auto [w, h] = window->recreateSwapchain(etna::Window::DesiredProperties{
       .resolution = {resolution.x, resolution.y},
       .vsync = useVsync,
+      .numFramesInFlight = static_cast<uint32_t>(commandManager->getCmdBufferCount()),
     });
     ETNA_VERIFY((resolution == glm::uvec2{w, h}));
   }
