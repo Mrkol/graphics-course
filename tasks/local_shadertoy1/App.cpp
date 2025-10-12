@@ -39,6 +39,10 @@ App::App()
     });
   }
 
+  // Next, we need a magical Etna helper to send commands to the GPU.
+  // How it is actually performed is not trivial, but we can skip this for now.
+  commandManager = etna::get_context().createPerFrameCmdMgr();
+
   // Now we can create an OS window
   osWindow = windowing.createWindow(OsWindow::CreateInfo{
     .resolution = resolution,
@@ -69,11 +73,6 @@ App::App()
     // we support. Still, it's better to follow the "intended" path.
     resolution = {w, h};
   }
-
-  // Next, we need a magical Etna helper to send commands to the GPU.
-  // How it is actually performed is not trivial, but we can skip this for now.
-  commandManager = etna::get_context().createPerFrameCmdMgr();
-
 
   // TODO: Initialize any additional resources you require here!
 }
