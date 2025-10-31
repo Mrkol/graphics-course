@@ -31,10 +31,10 @@ App::App()
   auto instExts = windowing.getRequiredVulkanInstanceExtensions();
   renderer->initVulkan(instExts);
 
-  auto surface = mainWindow->createVkSurface(etna::get_context().getInstance());
+  auto surface_ = mainWindow->createVkSurface(etna::get_context().getInstance());
 
   renderer->initFrameDelivery(
-    std::move(surface), [window = mainWindow.get()]() { return window->getResolution(); });
+    std::move(surface_), [window = mainWindow.get()]() { return window->getResolution(); });
 
   // TODO: this is bad design, this initialization is dependent on the current ImGui context, but we
   // pass it implicitly here instead of explicitly. Beware if trying to do something tricky.
