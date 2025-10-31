@@ -12,14 +12,14 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        cxx: [g++-12, clang++-15]
+        cxx: [g++-14, clang++-17]
         build_type: [Debug, RelWithDebInfo, Release]
         include:
-          - cxx: g++-12
-            install: sudo apt install g++-12
-          - cxx: clang++-15
+          - cxx: g++-14
+            install: sudo apt install g++-14
+          - cxx: clang++-17
             cxxflags: -stdlib=libc++
-            install: sudo apt install clang-15 libc++-15-dev libc++abi-15-dev
+            install: sudo apt install clang-17 libc++-17-dev libc++abi-17-dev
 
     steps:
     - uses: actions/checkout@v4
