@@ -27,8 +27,8 @@ out gl_PerVertex { vec4 gl_Position; };
 
 void main(void)
 {
-  const vec4 wNorm = vec4(decode_normal(floatBitsToInt(vPosNorm.w)),     0.0f);
-  const vec4 wTang = vec4(decode_normal(floatBitsToInt(vTexCoordAndTang.z)), 0.0f);
+  const vec4 wNorm = vec4(decode_baked_normal(floatBitsToUint(vPosNorm.w)),     0.0f);
+  const vec4 wTang = vec4(decode_baked_normal(floatBitsToUint(vTexCoordAndTang.z)), 0.0f);
 
   vOut.wPos   = (params.mModel * vec4(vPosNorm.xyz, 1.0f)).xyz;
   vOut.wNorm  = normalize(mat3(transpose(inverse(params.mModel))) * wNorm.xyz);

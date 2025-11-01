@@ -81,6 +81,7 @@ private:
     std::vector<Mesh> meshes;
   };
   ProcessedMeshes processMeshes(const tinygltf::Model& model) const;
+  ProcessedMeshes processBakedMeshes(const tinygltf::Model& model) const;
   void uploadData(std::span<const Vertex> vertices, std::span<const std::uint32_t>);
 
 private:

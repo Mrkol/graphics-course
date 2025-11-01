@@ -350,6 +350,54 @@ SceneManager::ProcessedMeshes SceneManager::processMeshes(const tinygltf::Model&
   return result;
 }
 
+SceneManager::ProcessedMeshes SceneManager::processBakedMeshes(const tinygltf::Model& model) const
+{
+
+  ProcessedMeshes result;
+
+  result.indices.resize(model.bufferViews[0].byteLength / sizeof(uint32_t));
+  result.vertices.resize(model.bufferViews[1].byteLength / sizeof(Vertex));
+
+  std::memcpy(
+    result.indices.data(),
+    model.buffers[0].data.data() + model.bufferViews[0].byteOffset,
+    model.bufferViews[0].byteLength);
+  std::memcpy(
+    result.vertices.data(),
+    model.buffers[0].data.data() + model.bufferViews[1].byteOffset,
+    model.bufferViews[1].byteLength);
+
+  {
+    std::size_t totalPrimitives = 0;
+    for (const auto& mesh : model.meshes)
+      totalPrimitives += mesh.primitives.size();
+    result.relems.reserve(totalPrimitives);
+  }
+
+  result.meshes.reserve(model.meshes.size());
+
+  for (const auto& mesh : model.meshes)
+  {
+    result.meshes.push_back(Mesh{
+      .firstRelem = static_cast<std::uint32_t>(result.relems.size()),
+      .relemCount = static_cast<std::uint32_t>(mesh.primitives.size()),
+    });
+
+    for (const auto& prim : mesh.primitives)
+    {
+      auto& indicies_accessor = model.accessors[prim.indices];
+      auto& position_accessor = model.accessors[prim.attributes.at("POSITION")];
+
+      result.relems.push_back(RenderElement{
+        static_cast<std::uint32_t>(position_accessor.byteOffset / sizeof(Vertex)),
+        static_cast<std::uint32_t>(indicies_accessor.byteOffset / sizeof(std::uint32_t)),
+        static_cast<std::uint32_t>(indicies_accessor.count)});
+    }
+  }
+
+  return result;
+}
+
 void SceneManager::uploadData(
   std::span<const Vertex> vertices, std::span<const std::uint32_t> indices)
 {
@@ -388,12 +436,18 @@ void SceneManager::selectScene(std::filesystem::path path)
   instanceMatrices = std::move(instMats);
   instanceMeshes = std::move(instMeshes);
 
-  auto [verts, inds, relems, meshs] = processMeshes(model);
+  ProcessedMeshes resultMeshes;
 
-  renderElements = std::move(relems);
-  meshes = std::move(meshs);
+  if (path.stem().string().ends_with("_baked")) {
+    resultMeshes = processBakedMeshes(model);
+  } else {
+    resultMeshes = processMeshes(model);
+  }
 
-  uploadData(verts, inds);
+  renderElements = std::move(resultMeshes.relems);
+  meshes = std::move(resultMeshes.meshes);
+
+  uploadData(resultMeshes.vertices, resultMeshes.indices);
 }
 
 etna::VertexByteStreamFormatDescription SceneManager::getVertexFormatDescription()
