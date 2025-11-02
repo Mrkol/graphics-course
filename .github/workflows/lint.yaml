@@ -44,7 +44,7 @@ jobs:
         cmake_command: |
           cmake -Bbuild -S. -DCMAKE_EXPORT_COMPILE_COMMANDS=on -DGLFW_BUILD_WAYLAND=off
         clang_tidy_checks: '' # Use closest .clang-tidy config, not some weird default
-        split_workflow: github.event.repository.public # So that comments work with fork PRs
+        split_workflow: ${{ github.event.repository.public }} # So that comments work with fork PRs
 
     # Upload review results as artifacts, a different workflow posts them
     # as comments. This is required due to security stuff.
