@@ -8,9 +8,6 @@ on:
       - '**.clang-format'
       - '**.clang-tidy'
 
-permissions:
-  contents: read
-
 jobs:
   check-format-and-tidy:
     runs-on: ubuntu-latest
