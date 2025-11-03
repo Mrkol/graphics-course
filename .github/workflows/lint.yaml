@@ -5,7 +5,6 @@ on:
     paths:
       - '**.hpp'
       - '**.cpp'
-      - '**.clang-format'
       - '**.clang-tidy'
 
 jobs:
@@ -49,6 +48,7 @@ jobs:
     # Upload review results as artifacts, a different workflow posts them
     # as comments. This is required due to security stuff.
     - uses: ZedThree/clang-tidy-review/upload@v0.21.0
+      id: upload-review
 
     # If there are any comments, fail the check
     - if: steps.review.outputs.total_comments > 0
