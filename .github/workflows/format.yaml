@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  check-format-and-tidy:
+  check-format:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4

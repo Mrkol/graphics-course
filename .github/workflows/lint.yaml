@@ -8,9 +8,6 @@ on:
       - '**.clang-format'
       - '**.clang-tidy'
 
-permissions:
-  contents: read
-
 jobs:
   check-format-and-tidy:
     runs-on: ubuntu-latest
@@ -47,11 +44,12 @@ jobs:
         cmake_command: |
           cmake -Bbuild -S. -DCMAKE_EXPORT_COMPILE_COMMANDS=on -DGLFW_BUILD_WAYLAND=off
         clang_tidy_checks: '' # Use closest .clang-tidy config, not some weird default
-        split_workflow: true # So that comments work with fork PRs
+        split_workflow: ${{ github.event.pull_request.head.repo.fork }} # So that comments work with fork PRs
 
     # Upload review results as artifacts, a different workflow posts them
     # as comments. This is required due to security stuff.
     - uses: ZedThree/clang-tidy-review/upload@v0.21.0
+      id: upload-review
 
     # If there are any comments, fail the check
     - if: steps.review.outputs.total_comments > 0
