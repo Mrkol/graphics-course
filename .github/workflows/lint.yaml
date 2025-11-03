@@ -5,6 +5,7 @@ on:
     paths:
       - '**.hpp'
       - '**.cpp'
+      - '**.clang-format'
       - '**.clang-tidy'
 
 jobs:
