@@ -5,6 +5,8 @@
 #include <etna/Etna.hpp>
 #include <etna/PipelineManager.hpp>
 
+#include <numeric>
+
 SimpleCompute::SimpleCompute()
   : length{16}
 {
@@ -38,10 +40,7 @@ void SimpleCompute::setup()
 
   {
     std::vector<float> values(length);
-    for (uint32_t i = 0; i < values.size(); ++i)
-    {
-      values[i] = (float)i;
-    }
+    std::iota(values.begin(), values.end(), 0.0);
     transferHelper->uploadBuffer<float>(*cmdMgr, bufA, 0, values);
   }
 
