@@ -33,6 +33,7 @@
 За использование shared memory для накопления локальных результатов в рамках группы тредов полагаются дополнительные баллы.
 Однако лучше реализовать оба варианта и сравнить профайлером время исполнения, использовать shared memory не всегда быстрее чем не использовать.
 Если в вашем приложении будет возможность включить/отключить shared memory (например при помощи ImGui) и сравнить результаты, это даст ещё больше баллов.
+За осмысленное использование subgroup операций тоже полагаются баллы.
 
 Подумайте, что в здесь имеется в виду под яркостью.
 Есть ли у яркости понятное представление в цветовой модели RGB?
@@ -51,3 +52,4 @@
 1. https://computergraphics.stackexchange.com/a/10318 &mdash; неплохое объяснение цветовых пространств "на пальцах"
 2. https://cdn.fastly.steamstatic.com/apps/valve/2008/GDC2008_PostProcessingInTheOrangeBox.pdf &mdsah; как тонмаппинг делался в Half Life 2
 3. https://bartwronski.com/2022/02/28/exposure-fusion-local-tonemapping-for-real-time-rendering/ &mdash; совсем крутой тонмаппинг, использующийся в Dagor
+4. https://www.khronos.org/blog/vulkan-subgroup-tutorial &mdash; subgroup операции, они же wave intrinsics
