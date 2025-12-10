@@ -7,6 +7,11 @@
 
 #include "wsi/OsWindowingManager.hpp"
 
+struct PushConstants {
+    glm::vec2 resolution;
+    glm::vec2 mouse;
+    float time;
+};
 
 class App
 {
@@ -28,4 +33,7 @@ private:
 
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
+
+  etna::Image result;
+  etna::ComputePipeline pipeline;
 };

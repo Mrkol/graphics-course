@@ -74,7 +74,16 @@ App::App()
   commandManager = etna::get_context().createPerFrameCmdMgr();
 
 
-  // TODO: Initialize any additional resources you require here!
+  etna::create_program("toy", {LOCAL_SHADERTOY1_SHADERS_ROOT "toy.comp.spv"});
+
+  result = etna::get_context().createImage(etna::Image::CreateInfo{
+    .extent = {resolution.x, resolution.y, 1},
+    .name = "name",
+    .format = vk::Format::eR8G8B8A8Unorm,
+    .imageUsage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc,
+  });
+  
+  pipeline = etna::get_context().getPipelineManager().createComputePipeline("toy", {});
 }
 
 App::~App()
@@ -111,7 +120,7 @@ void App::drawFrame()
   // because it kills the swapchain, so we skip frames in this case.
   if (nextSwapchainImage)
   {
-    auto [backbuffer, backbufferView, backbufferAvailableSem] = *nextSwapchainImage;
+    auto [backbuffer, backbufferView, backbufferAvailableSem, backbufferFence] = *nextSwapchainImage;
 
     ETNA_CHECK_VK_RESULT(currentCmdBuf.begin(vk::CommandBufferBeginInfo{}));
     {
@@ -137,9 +146,75 @@ void App::drawFrame()
       // and blit/copy operations.
       etna::flush_barriers(currentCmdBuf);
 
+      auto simpleComputeInfo = etna::get_shader_program("toy");
+      
+      auto set = etna::create_descriptor_set(
+        simpleComputeInfo.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {
+          etna::Binding{0, result.genBinding({}, vk::ImageLayout::eGeneral)},
+        });
 
-      // TODO: Record your commands here!
+      vk::DescriptorSet vkSet = set.getVkSet();
 
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
+      currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
+
+      PushConstants pushConstants{
+        .resolution = glm::vec2(resolution.x, resolution.y),
+        .mouse = osWindow->mouse.freePos,
+        .time = float(windowing.getTime())};
+      
+      currentCmdBuf.pushConstants(
+        pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(pushConstants), &pushConstants);
+
+      etna::flush_barriers(currentCmdBuf);
+
+      etna::set_state(
+        currentCmdBuf,
+        result.get(),
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderStorageWrite,
+        vk::ImageLayout::eGeneral,
+        vk::ImageAspectFlagBits::eColor);
+      etna::flush_barriers(currentCmdBuf);
+      
+      currentCmdBuf.dispatch(
+        (resolution.x + 31) / 32,
+        (resolution.y + 31) / 32, 1);
+
+      etna::set_state(
+        currentCmdBuf,
+        result.get(),
+        vk::PipelineStageFlagBits2::eTransfer,
+        vk::AccessFlagBits2::eTransferRead,
+        vk::ImageLayout::eTransferSrcOptimal,
+        vk::ImageAspectFlagBits::eColor);
+      etna::flush_barriers(currentCmdBuf);
+
+      currentCmdBuf.blitImage(
+        result.get(),
+        vk::ImageLayout::eTransferSrcOptimal,
+        backbuffer,
+        vk::ImageLayout::eTransferDstOptimal,
+        {vk::ImageBlit{
+          .srcSubresource = vk::ImageSubresourceLayers{
+            .aspectMask = vk::ImageAspectFlagBits::eColor,
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+          },
+          .srcOffsets = std::array{vk::Offset3D{0, 0, 0}, vk::Offset3D{int(resolution.x), int(resolution.y), 1}},
+          .dstSubresource = vk::ImageSubresourceLayers{
+            .aspectMask = vk::ImageAspectFlagBits::eColor,
+            .mipLevel = 0,
+            .baseArrayLayer = 0,
+            .layerCount = 1,
+          },
+          .dstOffsets = std::array{vk::Offset3D{0, 0, 0}, vk::Offset3D{int(resolution.x), int(resolution.y), 1}},
+        }},
+        vk::Filter::eLinear);
 
       // At the end of "rendering", we are required to change how the pixels of the
       // swpchain image are laid out in memory to something that is appropriate
@@ -161,7 +236,7 @@ void App::drawFrame()
     // Note that the GPU won't start executing our commands before the semaphore is
     // signalled, which will happen when the OS says that the next swapchain image is ready.
     auto renderingDone =
-      commandManager->submit(std::move(currentCmdBuf), std::move(backbufferAvailableSem));
+      commandManager->submit(std::move(currentCmdBuf), std::move(backbufferAvailableSem), std::move(backbufferFence));
 
     // Finally, present the backbuffer the screen, but only after the GPU tells the OS
     // that it is done executing the command buffer via the renderingDone semaphore.
