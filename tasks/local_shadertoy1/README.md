@@ -55,3 +55,8 @@
  1. https://docs.vulkan.org/spec/latest/index.html &mdash; единый ресурс всего про Vulkan (документация, туториалы, гайды)
  2. https://www.khronos.org/opengl/wiki/OpenGL_Shading_Language &mdash; справочник по языку GLSL
  3. https://www.amd.com/content/dam/amd/en/documents/radeon-tech-docs/instruction-set-architectures/rdna3-shader-instruction-set-architecture-feb-2023_0.pdf &mdash; документация по архитектуре RDNA3 для тех кто хочет углубиться в хардвер
+
+
+## Result
+
+![alt text](render_result_screen.png)
