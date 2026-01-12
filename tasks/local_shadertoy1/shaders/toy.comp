@@ -4,15 +4,272 @@ layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(binding = 0, rgba8) uniform image2D resultImage;
 
+layout(push_constant) uniform PushConstants {
+    vec2 iResolution;
+    float iTime;
+} pc;
+
+const vec3  eye      = vec3 ( 0, 0, 3 );
+const vec3  light    = vec3 ( 0.0, 3.0, 5.0 );
+const int   maxSteps = 70;
+const float eps      = 0.01;
+
+// Hash function for noise
+float hash(float n) { return fract(sin(n) * 1e4); }
+float hash(vec2 p) { return fract(1e4 * sin(17.0 * p.x + p.y * 0.1) * (0.1 + abs(sin(p.y * 13.0 + p.x)))); }
+
+// Value noise by Inigo Quilez
+float noise(vec3 x) {
+    vec3 p = floor(x);
+    vec3 f = fract(x);
+    f = f * f * (3.0 - 2.0 * f);
+    
+    float n = p.x + p.y * 157.0 + 113.0 * p.z;
+    return mix(mix(mix(hash(n + 0.0), hash(n + 1.0), f.x),
+               mix(hash(n + 157.0), hash(n + 158.0), f.x), f.y),
+               mix(mix(hash(n + 113.0), hash(n + 114.0), f.x),
+               mix(hash(n + 270.0), hash(n + 271.0), f.x), f.y), f.z);
+}
+
+// Fractal Brownian Motion
+float fbm(vec3 p) {
+    float value = 0.0;
+    float amplitude = 0.5;
+    float frequency = 1.0;
+    
+    for (int i = 0; i < 5; i++) {
+        value += amplitude * noise(p * frequency);
+        amplitude *= 0.5;
+        frequency *= 2.0;
+    }
+    return value;
+}
+
+// Rotation matrix around the X axis.
+mat3 rotateX(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(1, 0, 0),
+        vec3(0, c, -s),
+        vec3(0, s, c)
+    );
+}
+
+// Rotation matrix around the Y axis.
+mat3 rotateY(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(c, 0, s),
+        vec3(0, 1, 0),
+        vec3(-s, 0, c)
+    );
+}
+
+// Rotation matrix around the Z axis.
+mat3 rotateZ(float theta) {
+    float c = cos(theta);
+    float s = sin(theta);
+    return mat3(
+        vec3(c, -s, 0),
+        vec3(s, c, 0),
+        vec3(0, 0, 1)
+    );
+}
+
+float dSphere ( vec3 p, in vec3 c )
+{
+    // Changed sphere radius from 1.0 to 0.7
+    return length ( p - c ) - 0.7 + 0.03 * sin(20.0*p.x + pc.iTime);
+}
+
+float length8 ( in vec2 p )
+{
+    return pow ( pow ( p.x, 8.0 ) + pow ( p.y, 8.0 ), 1.0/ 8.0 );
+}
+
+float length8 ( in vec3 p )
+{
+    return pow ( pow ( p.x, 8.0 ) + pow ( p.y, 8.0 ) + pow ( p.z, 8.0 ), 1.0/ 8.0 );
+}
+
+float dTorus ( vec3 p, vec2 t )
+{
+    // Changed torus parameters to make it smaller
+    vec2 q = vec2 ( length8 ( p.xz ) - t.x * 0.6, p.y );
+    
+    return length8 ( q ) - t.y * 0.5;
+}
+
+float smin ( float a, float b, float k )
+{
+    float res = exp ( -k*a ) + exp ( -k*b );
+    return -log ( res ) / k;
+}
+
+float sdf ( in vec3 p, in mat3 m )
+{
+   vec3 q = m * p;
+    
+    // Adjust sphere position to account for smaller size
+    return smin ( dTorus ( q, vec2 ( 0.73, 0.4 ) ),  
+                 dSphere ( q, vec3 ( 1.5, 0, 0 ) ),  // Moved sphere further out
+                 7.0 );
+}
+
+vec3 trace ( in vec3 from, in vec3 dir, out bool hit, in mat3 m )
+{
+    vec3 p         = from;
+    float totalDist = 0.0;
+    
+    hit = false;
+    
+    for ( int steps = 0; steps < maxSteps; steps++ )
+    {
+        float dist = sdf ( p, m );
+        
+        if ( dist < 0.01 )
+        {
+            hit = true;
+            break;
+        }
+        
+        totalDist += dist;
+        
+        if ( totalDist > 10.0 )
+            break;
+            
+        p += dist * dir;
+    }
+    
+    return p;
+}
+
+vec3 generateNormal ( vec3 z, float d, in mat3 m )
+{
+    float e   = max (d * 0.5, eps );
+    float dx1 = sdf(z + vec3(e, 0, 0), m);
+    float dx2 = sdf(z - vec3(e, 0, 0), m);
+    float dy1 = sdf(z + vec3(0, e, 0), m);
+    float dy2 = sdf(z - vec3(0, e, 0), m);
+    float dz1 = sdf(z + vec3(0, 0, e), m);
+    float dz2 = sdf(z - vec3(0, 0, e), m);
+    
+    return normalize ( vec3 ( dx1 - dx2, dy1 - dy2, dz1 - dz2 ) );
+}
+
+// Calculate triplanar weights based on normal direction
+vec3 getTriplanarWeights ( in vec3 n )
+{
+    vec3 w = abs ( n );
+    w *= w;
+    return w / ( w.x + w.y + w.z );
+}
+
+// Procedural texture function that simulates what would be in a texture sampler
+vec4 sampleTexture( vec2 uv )
+{
+    // Create a procedural pattern that looks like a texture
+    float scale = 5.0;
+    vec2 tiledUV = uv * scale;
+    
+    // Create a grid pattern
+    vec2 grid = abs(fract(tiledUV - 0.5) - 0.5);
+    float line = min(grid.x, grid.y);
+    float gridPattern = 1.0 - smoothstep(0.0, 0.1, line);
+    
+    // Add some noise for texture detail
+    float noisePattern = fbm(vec3(tiledUV, pc.iTime * 0.1));
+    
+    // Combine patterns
+    vec3 color = mix(vec3(0.8, 0.6, 0.4), vec3(0.9, 0.8, 0.7), gridPattern);
+    color = mix(color, color * 0.8, noisePattern * 0.3);
+    
+    return vec4(color, 1.0);
+}
+
+// Simple lighting with triplanar texturing
+vec4 renderWithTriplanar ( in vec3 p, in vec3 n, in vec3 l, in mat3 m )
+{
+    // Calculate lighting
+    float nl = max(0.0, dot(n, l));
+    
+    // Get triplanar weights
+    vec3 weights = getTriplanarWeights(n);
+    
+    // Transform point to model space for texturing
+    vec3 q = m * p;
+    
+    // Sample textures from three planes
+    vec4 cx = sampleTexture(q.yz);
+    vec4 cy = sampleTexture(q.zx);
+    vec4 cz = sampleTexture(q.xy);
+    
+    // Blend textures using weights
+    vec4 texColor = weights.x * cx + weights.y * cy + weights.z * cz;
+    
+    // Add specular highlight
+    vec3 h = normalize(l + normalize(eye - p));
+    float nh = max(0.0, dot(n, h));
+    float spec = pow(nh, 32.0);
+    
+    // Final color with lighting
+    return vec4(nl * texColor.rgb + spec * vec3(0.8), 1.0);
+}
 
 void main()
 {
-  ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 pixelCoord = ivec2(gl_GlobalInvocationID.xy);
+    
+    // Skip if out of bounds
+    if (pixelCoord.x >= int(pc.iResolution.x) || pixelCoord.y >= int(pc.iResolution.y))
+        return;
+    
+    bool hit;
+    
+    // Create continuous rotation on all axes
+    float time = pc.iTime;
+    mat3 rx = rotateX(0.7 * time);
+    mat3 ry = rotateY(1.0 * time);
+    mat3 rz = rotateZ(0.5 * time);
+    
+    // Combine all rotations (no mouse input in compute shader)
+    mat3 m = rx * ry * rz;
+    
+    // Normalized pixel coordinates (-1 to 1)
+    vec2 uv = (vec2(pixelCoord) / pc.iResolution.xy) * 2.0 - 1.0;
+    
+    // Adjust for aspect ratio
+    uv.x *= pc.iResolution.x / pc.iResolution.y;
+    
+    vec3 dir   = normalize ( vec3 ( uv, 0 ) - eye );
+    vec4 color = vec4 ( 0, 0, 0, 1 );
+    vec3 p     = trace ( eye, dir, hit, m );
 
-  // TODO: Put your shadertoy code here!
-  // Simple gradient as a test.
-  vec3 color = vec3(vec2(uv) / vec2(1280, 720), 0);
+    if ( hit )
+    {
+        vec3  l  = normalize ( light - p );
+        vec3  n  = generateNormal ( p, 0.001, m );
+        
+        color = renderWithTriplanar ( p, n, l, m );
+    } 
+    else
+    {
+        // Normalized pixel coordinates (from 0 to 1)
+        vec2 fragCoord = vec2(pixelCoord);
+        vec2 uv = fragCoord / pc.iResolution.xy;
 
-  if (uv.x < 1280 && uv.y < 720)
-    imageStore(resultImage, uv, vec4(color, 1));
+        // Time varying pixel color
+        vec3 col = 0.5 + 0.5 * cos(pc.iTime + uv.xyx + vec3(0, 2, 4));
+
+        // Output to screen
+        color = vec4(col, 1.0);
+    }
+
+    // Apply simple gamma correction
+    color.rgb = pow(color.rgb, vec3(1.0/2.2));
+
+    // Store the result
+    imageStore(resultImage, pixelCoord, color);
 }
