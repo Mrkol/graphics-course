@@ -1,0 +1,68 @@
+diff --git a/etna/source/StateTracking.cpp b/etna/source/StateTracking.cpp
+index 14e77f4..950aab0 100644
+--- a/etna/source/StateTracking.cpp
++++ b/etna/source/StateTracking.cpp
+@@ -15,16 +15,15 @@ void ResourceStates::setBufferState(
+   ForceSetState force)
+ {
+   HandleType resHandle = std::bit_cast<HandleType>(static_cast<VkBuffer>(buffer));
+-  if (currentStates.count(resHandle) == 0)
+-  {
+-    currentStates[resHandle] = BufferState{.owner = com_buffer};
+-  }
++  auto it = currentStates.find(resHandle);
++  if (it == currentStates.end())
++    it = currentStates.insert_or_assign(resHandle, BufferState{.owner = com_buffer}).first;
+   BufferState newState{
+     .piplineStageFlags = pipeline_stage_flag,
+     .accessFlags = access_flags,
+     .owner = com_buffer,
+   };
+-  auto& oldState = std::get<1>(currentStates[resHandle]);
++  auto& oldState = std::get<BufferState>(it->second);
+   if (force == ForceSetState::eFalse && newState == oldState)
+     return;
+   bufBarriersToFlush.push_back(vk::BufferMemoryBarrier2{
+@@ -48,12 +47,14 @@ void ResourceStates::setExternalTextureState(
+   vk::ImageLayout layout)
+ {
+   HandleType resHandle = std::bit_cast<HandleType>(static_cast<VkImage>(image));
+-  currentStates[resHandle] = TextureState{
+-    .piplineStageFlags = pipeline_stage_flag,
+-    .accessFlags = access_flags,
+-    .layout = layout,
+-    .owner = {},
+-  };
++  currentStates.insert_or_assign(
++    resHandle,
++    TextureState{
++      .piplineStageFlags = pipeline_stage_flag,
++      .accessFlags = access_flags,
++      .layout = layout,
++      .owner = {},
++    });
+ }
+ 
+ void ResourceStates::setTextureState(
+@@ -66,17 +67,16 @@ void ResourceStates::setTextureState(
+   ForceSetState force)
+ {
+   HandleType resHandle = std::bit_cast<HandleType>(static_cast<VkImage>(image));
+-  if (currentStates.count(resHandle) == 0)
+-  {
+-    currentStates[resHandle] = TextureState{.owner = com_buffer};
+-  }
++  auto it = currentStates.find(resHandle);
++  if (it == currentStates.end())
++    it = currentStates.insert_or_assign(resHandle, TextureState{.owner = com_buffer}).first;
+   TextureState newState{
+     .piplineStageFlags = pipeline_stage_flag,
+     .accessFlags = access_flags,
+     .layout = layout,
+     .owner = com_buffer,
+   };
+-  auto& oldState = std::get<0>(currentStates[resHandle]);
++  auto& oldState = std::get<TextureState>(it->second);
+   if (force == ForceSetState::eFalse && newState == oldState)
+     return;
+   imgBarriersToFlush.push_back(vk::ImageMemoryBarrier2{

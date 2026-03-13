@@ -1,0 +1,64 @@
+--- a/etna/include/etna/Image.hpp
++++ b/etna/include/etna/Image.hpp
+@@ -96,11 +96,11 @@ class Image
+     uint32_t baseMip = 0;
+ 
+     // Count of mip levels to view (default = all)
+-    uint32_t levelCount = vk::RemainingMipLevels;
++    uint32_t levelCount = VK_REMAINING_MIP_LEVELS;
+ 
+     // First layer to view
+     uint32_t baseLayer = 0;
+ 
+     // Count of layers to view (default = all)
+-    uint32_t layerCount = vk::RemainingArrayLayers;
++    uint32_t layerCount = VK_REMAINING_ARRAY_LAYERS;
+ 
+     // "Aspects" of the image to view. Is only useful for combined depth/stencil
+     // images, by default is determined automatically as all present aspects.
+@@ -123,8 +123,8 @@ class Image
+   ImageBinding genBinding(
+     vk::Sampler sampler,
+     vk::ImageLayout layout,
+     ViewParams params = {
+-      0, vk::RemainingMipLevels, 0, vk::RemainingArrayLayers, {}, {}, {}, {}}) const;
++      0, VK_REMAINING_MIP_LEVELS, 0, VK_REMAINING_ARRAY_LAYERS, {}, {}, {}, {}}) const;
+ 
+   // Returns the "all" aspects combination of flags based on the image's real format
+   vk::ImageAspectFlags getAspectMaskByFormat() const;
+--- a/etna/include/etna/EtnaConfig.hpp
++++ b/etna/include/etna/EtnaConfig.hpp
+@@ -20,7 +20,7 @@ inline constexpr std::array VULKAN_LAYERS = {
+ #endif
+ #endif
+ 
+-inline constexpr uint32_t VULKAN_API_VERSION = vk::ApiVersion13;
++inline constexpr uint32_t VULKAN_API_VERSION = VK_API_VERSION_1_3;
+ 
+ inline constexpr size_t MAX_FRAMES_INFLIGHT = 4;
+ 
+--- a/etna/include/etna/Buffer.hpp
++++ b/etna/include/etna/Buffer.hpp
+@@ -55,7 +55,7 @@ class Buffer
+   [[nodiscard]] vk::Buffer get() const { return buffer; }
+   [[nodiscard]] std::byte* data() { return mapped; }
+ 
+-  BufferBinding genBinding(vk::DeviceSize offset = 0, vk::DeviceSize range = vk::WholeSize) const;
++  BufferBinding genBinding(vk::DeviceSize offset = 0, vk::DeviceSize range = VK_WHOLE_SIZE) const;
+ 
+   // If the buffer is in CPU_TO_GPU or GPU_TO_CPU memory, returns a CPU-accessible
+   // pointer to the start of this buffer's bytes, which can be used for reading or
+--- a/etna/source/StateTracking.cpp
++++ b/etna/source/StateTracking.cpp
+@@ -93,9 +93,9 @@ void ResourceStates::setState(
+       {
+         .aspectMask = aspect_flags,
+         .baseMipLevel = 0,
+-        .levelCount = vk::RemainingMipLevels,
++        .levelCount = VK_REMAINING_MIP_LEVELS,
+         .baseArrayLayer = 0,
+-        .layerCount = vk::RemainingArrayLayers,
++        .layerCount = VK_REMAINING_ARRAY_LAYERS,
+       },
+   });
+   oldState = newState;

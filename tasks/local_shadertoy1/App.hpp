@@ -18,6 +18,7 @@ public:
 
 private:
   void drawFrame();
+  void createComputeTargets();
 
 private:
   OsWindowingManager windowing;
@@ -28,4 +29,7 @@ private:
 
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
+
+  etna::Image resultImage;
+  etna::ComputePipeline computePipeline;
 };

@@ -11,7 +11,12 @@ define_property(TARGET PROPERTY INTERFACE_SHADER_INCLUDE_DIRECTORIES
   FULL_DOCS "Adds this include directories to all shaders of targets that depend on this one"
 )
 
-find_program(glslang_validator glslangValidator)
+find_program(glslang_validator glslangValidator NAMES glslangValidator glslangValidator.exe)
+if(NOT glslang_validator)
+  message(FATAL_ERROR
+    "glslangValidator not found (needed to compile .comp/.vert/.frag to SPIR-V). "
+    "Debian/Ubuntu: sudo apt install glslang-tools")
+endif()
 
 # Wokrs same way as target_include_directories, i.e. PUBLIC/PRIVATE/INTERFACE are supported
 function(target_shader_include_directories tgt)
@@ -23,7 +28,7 @@ function(target_shader_include_directories tgt)
       continue()
     endif()
 
-    set(abs_path "$<PATH:ABSOLUTE_PATH,NORMALIZE,$<TARGET_GENEX_EVAL:${tgt},${arg}>,$<TARGET_PROPERTY:${tgt},SOURCE_DIR>>")
+    get_filename_component(abs_path "${arg}" ABSOLUTE BASE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
     if(${current_type} STREQUAL "PUBLIC")
       set_property(TARGET ${tgt} APPEND PROPERTY SHADER_INCLUDE_DIRECTORIES ${abs_path})
@@ -45,7 +50,8 @@ function(target_add_shaders tgt)
 
   foreach(glsl_path ${ARGN})
     set(input_path "${CMAKE_CURRENT_LIST_DIR}/${glsl_path}")
-    set(output_path "${shader_binaries_dir}/$<PATH:GET_FILENAME,${glsl_path}>.spv")
+    get_filename_component(_glsl_name "${glsl_path}" NAME)
+    set(output_path "${shader_binaries_dir}/${_glsl_name}.spv")
     add_custom_command(
         OUTPUT ${output_path}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${shader_binaries_dir}

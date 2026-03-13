@@ -12,8 +12,19 @@ CPMAddPackage(
     "GLFW_BULID_DOCS OFF"
 )
 
-# Cross-platform 3D graphics
-find_package(Vulkan 1.4.328 REQUIRED)
+# Cross-platform 3D graphics (loader from system/SDK)
+find_package(Vulkan 1.4.300 REQUIRED)
+# C++ API in system packages is often stale; use Khronos headers matching the course.
+CPMAddPackage(
+  NAME VulkanHeaders
+  GITHUB_REPOSITORY KhronosGroup/Vulkan-Headers
+  GIT_TAG vulkan-sdk-1.4.304.0
+  DOWNLOAD_ONLY YES
+)
+if(VulkanHeaders_ADDED AND TARGET Vulkan::Vulkan)
+  set_target_properties(Vulkan::Vulkan PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${VulkanHeaders_SOURCE_DIR}/include")
+endif()
 
 # Dear ImGui -- easiest way to do GUI
 CPMAddPackage(
@@ -51,10 +62,14 @@ CPMAddPackage(
 )
 
 # etna -- our wrapper around Vulkan to make life easier
+# Upstream etna requires CMake 3.25; patch allows 3.22 (Ubuntu 22.04 default).
 CPMAddPackage(
   NAME etna
   GITHUB_REPOSITORY AlexandrShcherbakov/etna
-  VERSION 1.15.0
+  VERSION 1.12.0
+  PATCHES
+    "${CMAKE_CURRENT_LIST_DIR}/patches/etna-cmake-3.22.patch"
+    "${CMAKE_CURRENT_LIST_DIR}/patches/etna-gcc11-state-tracking.patch"
 )
 
 # Type-erased function containers that actually work
