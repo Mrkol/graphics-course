@@ -4,6 +4,17 @@
 #include <etna/GlobalContext.hpp>
 #include <etna/PipelineManager.hpp>
 
+#include <GLFW/glfw3.h>
+
+namespace
+{
+struct PushConstants
+{
+  float resolutionX;
+  float resolutionY;
+  float iTime;
+};
+}
 
 App::App()
   : resolution{1280, 720}
@@ -33,7 +44,6 @@ App::App()
       .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
       .instanceExtensions = instanceExtensions,
       .deviceExtensions = deviceExtensions,
-      // Replace with an index if etna detects your preferred GPU incorrectly
       .physicalDeviceIndexOverride = {},
       .numFramesInFlight = 1,
     });
@@ -75,6 +85,21 @@ App::App()
   }
 
   // TODO: Initialize any additional resources you require here!
+  etna::create_program(
+    "local_shadertoy1", {LOCAL_SHADERTOY1_SHADERS_ROOT "toy.comp.spv"});
+  computePipeline =
+    etna::get_context().getPipelineManager().createComputePipeline("local_shadertoy1", {});
+  createComputeTargets();
+}
+
+void App::createComputeTargets()
+{
+  resultImage = etna::get_context().createImage(etna::Image::CreateInfo{
+    .extent = vk::Extent3D{resolution.x, resolution.y, 1},
+    .name = "shadertoy_result",
+    .format = vk::Format::eR8G8B8A8Unorm,
+    .imageUsage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc,
+  });
 }
 
 App::~App()
@@ -87,7 +112,6 @@ void App::run()
   while (!osWindow->isBeingClosed())
   {
     windowing.poll();
-
     drawFrame();
   }
 
@@ -114,6 +138,10 @@ void App::drawFrame()
     auto [backbuffer, backbufferView, backbufferAvailableSem, backbufferReadyForPresentSem] =
       *nextSwapchainImage;
 
+    if (resultImage.getExtent().width != resolution.x ||
+        resultImage.getExtent().height != resolution.y)
+      createComputeTargets();
+
     ETNA_CHECK_VK_RESULT(currentCmdBuf.begin(vk::CommandBufferBeginInfo{}));
     {
       // First of all, we need to "initialize" th "backbuffer", aka the current swapchain
@@ -124,13 +152,20 @@ void App::drawFrame()
       etna::set_state(
         currentCmdBuf,
         backbuffer,
-        // We are going to use the texture at the transfer stage...
         vk::PipelineStageFlagBits2::eTransfer,
-        // ...to transfer-write stuff into it...
         vk::AccessFlagBits2::eTransferWrite,
-        // ...and want it to have the appropriate layout.
         vk::ImageLayout::eTransferDstOptimal,
         vk::ImageAspectFlagBits::eColor);
+
+      // Result image: general layout for compute storage writes.
+      etna::set_state(
+        currentCmdBuf,
+        resultImage.get(),
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderStorageWrite,
+        vk::ImageLayout::eGeneral,
+        vk::ImageAspectFlagBits::eColor);
+
       // The set_state doesn't actually record any commands, they are deferred to
       // the moment you call flush_barriers.
       // As with set_state, Etna sometimes flushes on it's own.
@@ -138,9 +173,71 @@ void App::drawFrame()
       // and blit/copy operations.
       etna::flush_barriers(currentCmdBuf);
 
-
       // TODO: Record your commands here!
+      auto prog = etna::get_shader_program("local_shadertoy1");
+      auto set = etna::create_descriptor_set(
+        prog.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {etna::Binding{
+          0,
+          resultImage.genBinding(vk::Sampler{}, vk::ImageLayout::eGeneral)}});
 
+      PushConstants pc{
+        .resolutionX = static_cast<float>(resolution.x),
+        .resolutionY = static_cast<float>(resolution.y),
+        .iTime = static_cast<float>(glfwGetTime()),
+      };
+
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, computePipeline.getVkPipeline());
+      vk::DescriptorSet vkSet = set.getVkSet();
+      currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute,
+        computePipeline.getVkPipelineLayout(),
+        0,
+        1,
+        &vkSet,
+        0,
+        nullptr);
+      currentCmdBuf.pushConstants(
+        computePipeline.getVkPipelineLayout(),
+        vk::ShaderStageFlagBits::eCompute,
+        0,
+        sizeof(PushConstants),
+        &pc);
+
+      constexpr uint32_t lx = 32, ly = 32;
+      uint32_t gx = (resolution.x + lx - 1) / lx;
+      uint32_t gy = (resolution.y + ly - 1) / ly;
+      currentCmdBuf.dispatch(gx, gy, 1);
+
+      etna::set_state(
+        currentCmdBuf,
+        resultImage.get(),
+        vk::PipelineStageFlagBits2::eTransfer,
+        vk::AccessFlagBits2::eTransferRead,
+        vk::ImageLayout::eTransferSrcOptimal,
+        vk::ImageAspectFlagBits::eColor);
+
+      etna::flush_barriers(currentCmdBuf);
+
+      vk::ImageSubresourceLayers sub{vk::ImageAspectFlagBits::eColor, 0, 0, 1};
+      const int32_t w = static_cast<int32_t>(resolution.x);
+      const int32_t h = static_cast<int32_t>(resolution.y);
+      vk::ImageBlit blitRegion{};
+      blitRegion.srcSubresource = sub;
+      blitRegion.srcOffsets[0] = vk::Offset3D{0, 0, 0};
+      blitRegion.srcOffsets[1] = vk::Offset3D{w, h, 1};
+      blitRegion.dstSubresource = sub;
+      blitRegion.dstOffsets[0] = vk::Offset3D{0, 0, 0};
+      blitRegion.dstOffsets[1] = vk::Offset3D{w, h, 1};
+
+      currentCmdBuf.blitImage(
+        resultImage.get(),
+        vk::ImageLayout::eTransferSrcOptimal,
+        backbuffer,
+        vk::ImageLayout::eTransferDstOptimal,
+        blitRegion,
+        vk::Filter::eLinear);
 
       // At the end of "rendering", we are required to change how the pixels of the
       // swpchain image are laid out in memory to something that is appropriate
@@ -148,7 +245,6 @@ void App::drawFrame()
       etna::set_state(
         currentCmdBuf,
         backbuffer,
-        // This looks weird, but is correct. Ask about it later.
         vk::PipelineStageFlagBits2::eColorAttachmentOutput,
         {},
         vk::ImageLayout::ePresentSrcKHR,
@@ -187,5 +283,7 @@ void App::drawFrame()
       .numFramesInFlight = static_cast<uint32_t>(commandManager->getCmdBufferCount()),
     });
     ETNA_VERIFY((resolution == glm::uvec2{w, h}));
+    if (glm::uvec2{w, h} != glm::uvec2{resultImage.getExtent().width, resultImage.getExtent().height})
+      createComputeTargets();
   }
 }

@@ -1,0 +1,37 @@
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 3.25)
++cmake_minimum_required(VERSION 3.22)
+ 
+ 
+ project(etna LANGUAGES CXX)
+--- a/thirdparty.cmake
++++ b/thirdparty.cmake
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 3.25)
++cmake_minimum_required(VERSION 3.22)
+ 
+ 
+ find_package(Vulkan 1.4.300 REQUIRED)
+@@ -16,10 +16,12 @@ set_property(TARGET VulkanMemoryAllocator PROPERTY SYSTEM TRUE)
+ # Official library for parsing SPIRV bytecode
+ # We grab the exact SDK version from github so that
+ # you don't have to remember to mark a checkbox while installing the SDK =)
++# NOTE (graphics-course): ${Vulkan_VERSION} is often empty under CMake 3.22 +
++# nested FetchContent; pin a tag compatible with Vulkan 1.4.x loaders.
+ CPMAddPackage(
+   NAME SpirvReflect
+   GITHUB_REPOSITORY KhronosGroup/SPIRV-Reflect
+-  GIT_TAG "vulkan-sdk-${Vulkan_VERSION}"
++  GIT_TAG "vulkan-sdk-1.4.304.0"
+   OPTIONS
+     "SPIRV_REFLECT_EXECUTABLE OFF"
+     "SPIRV_REFLECT_STRIPPER OFF"
+--- a/etna/CMakeLists.txt
++++ b/etna/CMakeLists.txt
+@@ -1,4 +1,4 @@
+-cmake_minimum_required(VERSION 3.25)
++cmake_minimum_required(VERSION 3.22)
+ 
+ set(ETNA_ENGINE_CONFIG_FILE ${CMAKE_CURRENT_SOURCE_DIR}/include/etna/EtnaEngineConfig.hpp)
