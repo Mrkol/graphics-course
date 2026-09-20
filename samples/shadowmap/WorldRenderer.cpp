@@ -133,16 +133,17 @@ void WorldRenderer::update(const FramePacket& packet)
 
   // calc light matrix
   {
-    const auto mProj = lightProps.usePerspectiveM
-      ? glm::perspectiveLH_ZO(
-          -glm::radians(packet.shadowCam.fov), 1.0f, 1.0f, lightProps.lightTargetDist * 2.0f)
-      : glm::orthoLH_ZO(
-          +lightProps.radius,
+    auto mProj = lightProps.usePerspectiveM
+      ? glm::perspectiveRH_ZO(
+          glm::radians(packet.shadowCam.fov), 1.0f, 1.0f, lightProps.lightTargetDist * 2.0f)
+      : glm::orthoRH_ZO(
           -lightProps.radius,
           +lightProps.radius,
           -lightProps.radius,
+          +lightProps.radius,
           0.0f,
           lightProps.lightTargetDist);
+    mProj[1][1] *= -1; // flip Y for Vulkan
 
     lightMatrix = mProj * packet.shadowCam.viewTm();
 

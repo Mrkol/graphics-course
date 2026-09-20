@@ -108,7 +108,7 @@ void App::moveCam(Camera& cam, const Keyboard& kb, float dt)
 void App::rotateCam(Camera& cam, const Mouse& ms, float /*dt*/)
 {
   // Rotate camera based on mouse movement
-  cam.rotate(camRotateSpeed * ms.capturedPosDelta.y, camRotateSpeed * ms.capturedPosDelta.x);
+  cam.rotate(-camRotateSpeed * ms.capturedPosDelta.y, -camRotateSpeed * ms.capturedPosDelta.x);
 
   // Increase or decrease field of view based on mouse wheel
   cam.fov -= zoomSensitivity * ms.scrollDelta.y;
