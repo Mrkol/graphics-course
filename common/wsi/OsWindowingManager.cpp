@@ -38,6 +38,16 @@ void OsWindowingManager::onWindowSizeCb(GLFWwindow* window, int width, int heigh
       it->second->onResize({static_cast<glm::uint>(width), static_cast<glm::uint>(height)});
 }
 
+void OsWindowingManager::onWindowFocusCb(GLFWwindow* window, int focused)
+{
+  if (auto it = instance->windows.find(window); it != instance->windows.end())
+  {
+    it->second->focused = static_cast<bool>(focused);
+    if (it->second->focused)
+      it->second->mouseWasCaptured = false;
+  }
+}
+
 OsWindowingManager::OsWindowingManager()
 {
   ETNA_VERIFY(glfwInit() == GLFW_TRUE);
@@ -88,6 +98,7 @@ std::unique_ptr<OsWindow> OsWindowingManager::createWindow(OsWindow::CreateInfo 
   glfwSetWindowCloseCallback(glfwWindow, &onWindowClosedCb);
   glfwSetWindowRefreshCallback(glfwWindow, &onWindowRefreshCb);
   glfwSetWindowSizeCallback(glfwWindow, &onWindowSizeCb);
+  glfwSetWindowFocusCallback(glfwWindow, &onWindowFocusCb);
 
   auto result = std::unique_ptr<OsWindow>{new OsWindow};
   result->owner = this;

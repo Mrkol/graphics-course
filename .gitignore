@@ -7,3 +7,4 @@ external
 .vscode
 CMakeSettings.json
 CMakeUserPresets.json
+imgui.ini

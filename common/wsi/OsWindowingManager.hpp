@@ -39,6 +39,7 @@ private:
   static void onWindowClosedCb(GLFWwindow* window);
   static void onWindowRefreshCb(GLFWwindow* window);
   static void onWindowSizeCb(GLFWwindow* window, int width, int height);
+  static void onWindowFocusCb(GLFWwindow* window, int focused);
 
   static void onWindowDestroyed(GLFWwindow*);
 

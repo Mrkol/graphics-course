@@ -61,6 +61,8 @@ public:
   // Returns current resolution. Might be 0,0 if minimized
   glm::uvec2 getResolution();
 
+  bool isFocused() const;
+
   vk::UniqueSurfaceKHR createVkSurface(vk::Instance instance);
 
   GLFWwindow* native() const { return impl; }
@@ -75,4 +77,5 @@ private:
   OsWindowResizeCb onResize;
   OsWindowRefreshCb onRefresh;
   bool mouseWasCaptured = false;
+  bool focused = false;
 };

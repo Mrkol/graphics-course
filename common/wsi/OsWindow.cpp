@@ -29,6 +29,11 @@ glm::uvec2 OsWindow::getResolution()
   return glm::uvec2(result);
 }
 
+bool OsWindow::isFocused() const
+{
+  return focused;
+}
+
 vk::UniqueSurfaceKHR OsWindow::createVkSurface(vk::Instance instance)
 {
   VkSurfaceKHR surface;
