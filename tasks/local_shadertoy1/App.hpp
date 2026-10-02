@@ -1,5 +1,8 @@
 #pragma once
 
+#include "etna/Sampler.hpp"
+
+
 #include <etna/Window.hpp>
 #include <etna/PerFrameCmdMgr.hpp>
 #include <etna/ComputePipeline.hpp>
@@ -15,11 +18,12 @@ public:
   ~App();
 
   void run();
+  void buildComputeCommands(vk::CommandBuffer currentCmdBuf);
+  vk::ImageCopy buildFullImageCopy();
 
 private:
   void drawFrame();
 
-private:
   OsWindowingManager windowing;
   std::unique_ptr<OsWindow> osWindow;
 
@@ -28,4 +32,9 @@ private:
 
   std::unique_ptr<etna::Window> vkWindow;
   std::unique_ptr<etna::PerFrameCmdMgr> commandManager;
+
+  etna::ComputePipeline computePipeline;
+  etna::Image image;
+  etna::Sampler defaultSampler;
+  std::chrono::steady_clock::time_point startTime;
 };

@@ -16,23 +16,26 @@ void SimpleCompute::setup()
 
   // Buffer creation
 
-  bufA = context->createBuffer(etna::Buffer::CreateInfo{
-    .size = sizeof(float) * length,
-    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-    .name = "A",
-  });
+  bufA = context->createBuffer(
+    etna::Buffer::CreateInfo{
+      .size = sizeof(float) * length,
+      .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+      .name = "A",
+    });
 
-  bufB = context->createBuffer(etna::Buffer::CreateInfo{
-    .size = sizeof(float) * length,
-    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
-    .name = "B",
-  });
+  bufB = context->createBuffer(
+    etna::Buffer::CreateInfo{
+      .size = sizeof(float) * length,
+      .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferDst,
+      .name = "B",
+    });
 
-  bufResult = context->createBuffer(etna::Buffer::CreateInfo{
-    .size = sizeof(float) * length,
-    .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
-    .name = "m_sum",
-  });
+  bufResult = context->createBuffer(
+    etna::Buffer::CreateInfo{
+      .size = sizeof(float) * length,
+      .bufferUsage = vk::BufferUsageFlagBits::eStorageBuffer | vk::BufferUsageFlagBits::eTransferSrc,
+      .name = "m_sum",
+    });
 
   // Filling the buffers
 
@@ -76,11 +79,9 @@ void SimpleCompute::buildCommandBuffer(vk::CommandBuffer cmd_buf)
   vk::DescriptorSet vkSet = set.getVkSet();
 
   cmd_buf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
-  cmd_buf.bindDescriptorSets(
-    vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
+  cmd_buf.bindDescriptorSets(vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(), 0, 1, &vkSet, 0, nullptr);
 
-  cmd_buf.pushConstants(
-    pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(length), &length);
+  cmd_buf.pushConstants(pipeline.getVkPipelineLayout(), vk::ShaderStageFlagBits::eCompute, 0, sizeof(length), &length);
 
   etna::flush_barriers(cmd_buf);
 
