@@ -4,14 +4,310 @@ layout(local_size_x = 32, local_size_y = 32) in;
 
 layout(binding = 0, rgba8) uniform image2D resultImage;
 
+// My shader:
+
+#define MOUSE_X    640.0
+#define MOUSE_Y    360.0
+#define RESOLUTION_X    1280.0
+#define RESOLUTION_Y    720.0
+
+mat3 mv;
+
+#define CENTER vec3(-1.0, 0.0, 0.0)
+
+float smoothUnion ( float d1, float d2, float k ) 
+{
+    float h = clamp( 0.5 + 0.5*(d2-d1)/k, 0.0, 1.0 );
+
+    return mix( d2, d1, h ) - k*h*(1.0-h); 
+}
+
+float plane ( in vec3 p, vec4 n )
+{
+    return dot ( p, n.xyz ) + n.w;
+}
+
+float movingPlane ( in vec3 p, vec4 n )
+{
+    float rings = plane(p, n);
+    float k = 0.25;
+    int numRings = 6;
+    float speed = 0.25;
+    float spacing = 1.0;
+    float period = 6.0;
+    float thickness = 0.005;
+
+    for (int i = 0; i < numRings; ++i) {
+        float R = 0.3 + float(i) * spacing; // iTime * speed;
+        R = mod(R, period) + 0.3;
+        
+        vec2 q = vec2(length(p.xz) - R, p.y);
+        float tor = length(q) - thickness;
+        
+        rings = smoothUnion(rings, tor, k);
+    }
+    
+    return rings;
+}
+    
+float cylinder ( in vec3 pos, in vec3 a, in vec3 b, in float r )
+{
+    vec3 pt = pos;
+    vec3  ba   = b  - a;
+    vec3  pa   = pt - a;
+    float baba = dot(ba,ba);
+    float paba = dot(pa,ba);
+    float x    = length(pa*baba-ba*paba) - r*baba;
+    float y   = abs(paba-baba*0.5)-baba*0.5;
+    float x2 = x*x;
+    float y2 = y*y*baba;
+    float d = (max(x,y)<0.0)?-min(x2,y2):(((x>0.0)?x2:0.0)+((y>0.0)?y2:0.0));
+
+    return sign(d)*sqrt(abs(d))/baba;
+}
+
+float coneCapped ( in vec3 pos, in float h, in float r1, in float r2, in vec3 start )
+{
+    vec3 pt = pos - start;
+    vec2 q  = vec2 ( length ( pt.xz ), pt.y );
+    vec2 k1 = vec2 ( r2, h );
+    vec2 k2 = vec2 ( r2 - r1, 2.0*h );
+    vec2 ca = vec2 ( q.x-min(q.x,(q.y<0.0)?r1:r2), abs(q.y)-h);
+    vec2 cb = q - k1 + k2*clamp( dot(k1-q,k2)/dot(k2, k2), 0.0, 1.0 );
+    float s = (cb.x<0.0 && ca.y<0.0) ? -1.0 : 1.0;
+
+    return s*sqrt( min(dot(ca, ca),dot(cb, cb)) );
+}
+
+float sdf ( in vec3 p )
+{
+    vec3 p_rot = mv * (p - CENTER) + CENTER;
+
+    float leg = cylinder( p_rot, vec3(0.0, 0.0, 0.0), vec3(0.0, 2.0, 0.0), 0.5);
+    float hat = coneCapped(p_rot, 0.5, 1.5, 0.0, vec3(0.0, 2.0, 0.0)) - 0.1;
+    float mushroom = smoothUnion(leg, hat, 0.5);
+    
+    float ground = movingPlane(p_rot, vec4(0.0, 1.0, 0.0, 0.0));
+    float all = min(ground, mushroom);
+
+    return all;
+}
+
+#define MAX_ITERS   90
+#define MAX_DIST    10.0
+vec3 trace ( vec3 from, vec3 dir, out bool hit, out int steps )
+{
+    vec3     p         = from;
+    float    totalDist = 0.0;
+    
+    hit = false;
+    
+    for ( steps = 0; steps < MAX_ITERS; steps++ )
+    {
+        float    dist = sdf ( p );
+        
+        if ( dist < 0.001 )
+        {
+            hit = true;
+            break;
+        }
+        
+        totalDist += dist;
+        
+        if ( totalDist > MAX_DIST )
+            break;
+            
+        p += dist * dir;
+    }
+    
+    return p;
+}
+
+vec3 cameraConfig(in vec3 eye, in vec2 fragCoord, in vec2 resolution)
+{
+    vec3 target = vec3(0.0, 1.0, 0.0);
+    vec3 worldUp = vec3(0.0, 1.0, 0.0);
+    
+    vec3 camForward = normalize(target - eye);
+    vec3 camRight = normalize(cross(camForward, worldUp));
+    vec3 camUp = normalize(cross(camRight, camForward));
+    
+    vec2 uv = (fragCoord - 0.5 * resolution) / resolution.y;
+    
+    float fov = 1.2;
+    vec3 dir = normalize(camForward + fov * (uv.x * camRight + uv.y * camUp));
+    
+    return dir;
+}
+
+mat3 getRotationMatrix(float angleY, float angleX) {
+    mat3 rotY = mat3(
+        cos(angleY), 0.0, sin(angleY),
+        0.0,         1.0, 0.0,
+        -sin(angleY), 0.0, cos(angleY)
+    );
+    
+    mat3 rotX = mat3(
+        1.0, 0.0,        0.0,
+        0.0, cos(angleX), -sin(angleX),
+        0.0, sin(angleX),  cos(angleX)
+    );
+    
+    return rotY * rotX;
+}
+
+#define PI    3.14159
+
+void setRotationMatrix() {
+    vec2 mouse = vec2(MOUSE_X, MOUSE_Y) / vec2(RESOLUTION_X, RESOLUTION_Y);
+    float angleX = 2.0 * PI * (0.5);
+    //float angleY = PI * (mouse.y - 0.5);
+    //angleX = clamp(angleX, -PI * 0.5, PI * 0.5);
+    mv = getRotationMatrix(angleX, 0.0);
+}
+
+#define EPS    0.0005
+vec3 generateNormal ( vec3 z, float d )
+{
+    float e   = max(d * 0.5, EPS);
+    float dx1 = sdf(z + vec3(e, 0, 0));
+    float dx2 = sdf(z - vec3(e, 0, 0));
+    float dy1 = sdf(z + vec3(0, e, 0));
+    float dy2 = sdf(z - vec3(0, e, 0));
+    float dz1 = sdf(z + vec3(0, 0, e));
+    float dz2 = sdf(z - vec3(0, 0, e));
+    
+    return normalize ( vec3 ( dx1 - dx2, dy1 - dy2, dz1 - dz2 ) );
+}
+
+#define ZERO    0
+float ambientOcclusion ( in vec3 pos, in vec3 normal )
+{
+    float occ = 0.0;
+    float sca = 1.0;
+
+    for ( int i = ZERO; i < 5; i++ )
+    {
+        float h = 0.01 + 0.12*float(i)/4.0;
+        float d = sdf ( pos + h*normal );
+
+        occ += (h-d)*sca;
+        sca *= 0.95;
+
+        if ( occ > 0.35 ) 
+            break;
+    }
+
+    return clamp ( 1.0 - 3.0*occ, 0.0, 1.0 ) * (0.5+0.5*normal.y);
+}
+
+vec3 calculateGlint(in vec3 eye, in vec3 pos, in vec3 n, in vec3 l)
+{
+    vec3 v = normalize(eye - pos);
+    vec3 h = normalize(l + v);
+    float hn = max(0.0, dot(h, n));
+    float sp = pow(hn, 100.0);
+    
+    return 0.5 * sp * vec3 (1, 1, 1);
+}
+
+float calculateLight(in vec3 eye, in vec3 pos, in vec3 n, in vec3 l)
+{
+    float nl = max( 0.0, dot ( n, l ) );
+    
+    float ao = ambientOcclusion(pos, n);
+
+    return nl * 0.7 + ao * 0.3;
+}
+
+vec3 getTriplanarWeights ( in vec3 n )
+{
+    vec3 w = abs ( n );
+    w *= w;
+    return w / ( w.x + w.y + w.z );
+}
+
+vec2 rot90 ( vec2 uv )
+{
+    return vec2 ( uv.y, -uv.x );
+}
+
+vec3 calculateTextures(in vec3 hitPoint, in vec3 n)
+{
+    vec3 p_local = mv * (hitPoint - CENTER) + CENTER;
+    vec3 n_local = mv * n;
+
+    float dLeg = cylinder(p_local, vec3(0.0, 0.0, 0.0), vec3(0.0, 2.0, 0.0), 0.5);
+    float dHat = coneCapped(p_local, 0.5, 1.5, 0.0, vec3(0.0, 2.0, 0.0)) - 0.1;
+    float dGround = plane(p_local, vec4(0.0, 1.0, 0.0, 0.0));
+
+    vec3 w = getTriplanarWeights(n_local);
+    vec3 q = p_local;
+
+    /*vec4 cx, cy, cz;
+    if (dLeg < dHat && dLeg < dGround) {
+        float vStretch = 0.7;
+        vec3 qLeg = vec3(q.x, q.y * vStretch, q.z);
+        
+        cx = texture(iChannel0, rot90(qLeg.yz));
+        cy = texture(iChannel0, qLeg.zx);
+        cz = texture(iChannel0, rot90(rot90(qLeg.xy)));
+    } else if (dHat < dLeg && dHat < dGround) {
+        cx = texture(iChannel1, q.yz);
+        cy = texture(iChannel1, q.zx);
+        cz = texture(iChannel1, q.xy);
+    } else {
+        cx = texture(iChannel2, q.yz);
+        cy = texture(iChannel2, q.zx);
+        cz = texture(iChannel2, q.xy);
+    }
+    vec3 texColor = w.x * cx.xyz + w.y * cy.xyz + w.z * cz.xyz;*/
+
+    vec3 texColor;
+    if (dLeg < dHat && dLeg < dGround) {
+        texColor = vec3(1.0, 1.0, 1.0);
+    } else if (dHat < dLeg && dHat < dGround) {
+        texColor = vec3(1.0, 0.0, 0.0);
+    } else {
+        texColor = vec3(0.0, 1.0, 0.0);
+    }
+    
+    return texColor;
+}
 
 void main()
 {
   ivec2 uv = ivec2(gl_GlobalInvocationID.xy);
 
-  // TODO: Put your shadertoy code here!
-  // Simple gradient as a test.
-  vec3 color = vec3(vec2(uv) / vec2(1280, 720), 0);
+  vec2 resolution = vec2(RESOLUTION_X, RESOLUTION_Y);
+  vec2 fragCoord = vec2(float(uv.x) + 0.5, resolution.y - float(uv.y) - 0.5);
+
+  vec3 color;
+
+  setRotationMatrix();
+
+  vec3 eye = vec3(0.0, 1.5, 5.0);
+  vec3 dir = cameraConfig(eye, fragCoord, resolution);
+  
+  bool    hit;
+  int     steps;
+  vec3 hitPoint = trace(eye, dir, hit, steps);
+  
+  if ( hit )
+  {
+      vec3 light = vec3  ( 0.0, 5.0, 5.0 );
+
+      vec3 n = generateNormal(hitPoint, 0.001);
+      vec3 l = normalize(light - hitPoint);
+
+      vec3 texColor = calculateTextures(hitPoint, n);
+      float lightCoeff = calculateLight(eye, hitPoint, n, l);
+      vec3 glintColor = calculateGlint(eye, hitPoint, n, l);
+
+      color = texColor * lightCoeff + glintColor;
+  }
+  else 
+      color = vec3 ( 0.5, 0.7, 1.0 );
 
   if (uv.x < 1280 && uv.y < 720)
     imageStore(resultImage, uv, vec4(color, 1));
