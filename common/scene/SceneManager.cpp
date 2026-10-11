@@ -356,14 +356,14 @@ void SceneManager::uploadData(
   unifiedVbuf = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
     .size = vertices.size_bytes(),
     .bufferUsage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
-    .memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY,
+    .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
     .name = "unifiedVbuf",
   });
 
   unifiedIbuf = etna::get_context().createBuffer(etna::Buffer::CreateInfo{
     .size = indices.size_bytes(),
     .bufferUsage = vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eIndexBuffer,
-    .memoryUsage = VMA_MEMORY_USAGE_GPU_ONLY,
+    .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
     .name = "unifiedIbuf",
   });
 

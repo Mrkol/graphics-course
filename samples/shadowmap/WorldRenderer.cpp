@@ -38,11 +38,11 @@ void WorldRenderer::allocateResources(glm::uvec2 swapchain_resolution)
   constants = ctx.createBuffer(etna::Buffer::CreateInfo{
     .size = sizeof(UniformParams),
     .bufferUsage = vk::BufferUsageFlagBits::eUniformBuffer,
-    .memoryUsage = VMA_MEMORY_USAGE_CPU_ONLY,
+    .memoryUsage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
+    .allocationCreate =
+      VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
     .name = "constants",
   });
-
-  constants.map();
 }
 
 void WorldRenderer::loadScene(std::filesystem::path path)
