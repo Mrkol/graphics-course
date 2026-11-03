@@ -5,7 +5,7 @@ set_languages("c++20")
 set_warnings("all", "extra", "pedantic")
 set_policy("build.warning", true)
 if is_plat("windows") then
-    add_cxxflags("/permissive-", "/volatile:iso", "/Zc:inline", "/Zc:wchar_t", "/EHsc", "/Zc:__cplusplus", "/Zc:preprocessor")
+    add_cxxflags("/utf-8", "/permissive-", "/volatile:iso", "/Zc:inline", "/Zc:wchar_t", "/EHsc", "/Zc:__cplusplus", "/Zc:preprocessor")
 end
 
 add_rules("mode.debug", "mode.release")
@@ -23,19 +23,15 @@ add_requires("tinygltf 2.9.2")
 add_requires("function2 4.2.4")
 add_requires("vulkan-memory-allocator", "spirv-reflect", "fmt 12.2.0", "tracy 0.11.1")
 add_requires("spdlog 1.15.3", {configs = {header_only = false, fmt_external = true, shared = false}})
+add_requireconfs("spdlog.fmt", {version = "12.2.0", override = true})
 
-local vulkan_sdk = os.getenv("VULKAN_SDK")
-if vulkan_sdk then
-    add_includedirs(path.join(vulkan_sdk, "Include"))
-    add_linkdirs(path.join(vulkan_sdk, "Lib"))
-    add_links("vulkan-1")
-else
-    raise("VULKAN_SDK must point to a Vulkan SDK installation")
-end
+add_requires("vulkan-headers", "vulkan-loader")
+add_requires("glslang", {configs = {binaryonly = true}})
+add_packages("vulkan-headers", "vulkan-loader", "glslang")
 
 add_defines(
-    'GRAPHICS_COURSE_RESOURCES_ROOT="' .. path.join(os.projectdir(), "resources") .. '"',
-    'GRAPHICS_COURSE_ROOT="' .. os.projectdir() .. '"'
+    'GRAPHICS_COURSE_RESOURCES_ROOT="' .. path.join(os.projectdir(), "resources"):gsub("\\", "/") .. '"',
+    'GRAPHICS_COURSE_ROOT="' .. os.projectdir():gsub("\\", "/") .. '"'
 )
 
 local etna_root = path.join(os.projectdir(), "build", "_deps", "etna")
@@ -56,7 +52,8 @@ target("etna")
         "VULKAN_HPP_NO_EXCEPTIONS", "TRACY_VK_USE_SYMBOL_TABLE",
         "VMA_STATIC_VULKAN_FUNCTIONS=0", "VMA_DYNAMIC_VULKAN_FUNCTIONS=1", {public = true})
     if is_mode("debug") then
-        add_defines("ETNA_DEBUG=1", "ETNA_SET_VULKAN_DEBUG_NAMES")
+        add_defines("ETNA_DEBUG=1", {public = true})
+        add_defines("ETNA_SET_VULKAN_DEBUG_NAMES")
     end
 target_end()
 
@@ -69,6 +66,13 @@ end
 
 rule("compile.glsl")
     on_load(function (target)
+        local shader_output = path.join(target:values("output_dir"), "shaders")
+        target:add("defines", string.upper(target:name()) .. "_SHADERS_ROOT=\"" .. shader_output:gsub("\\", "/") .. "/\"")
+    end)
+    before_build(function (target)
+        import("lib.detect.find_tool")
+        local validator = assert(find_tool("glslangValidator", {envs = target:pkgenvs()})
+            or find_tool("glslang", {envs = target:pkgenvs()}), "glslang compiler not found")
         local target_name = target:name()
         local shader_directory = target:values("shader_directory")
         local shader_files = {}
@@ -79,9 +83,7 @@ rule("compile.glsl")
             end
         end
         local shader_output = path.join(target:values("output_dir"), "shaders")
-        local shader_define_output = shader_output:gsub("\\", "/")
-        target:add("includedirs", path.join(os.projectdir(), "common", "render_utils", "shaders"), {public = false})
-        target:add("defines", string.upper(target_name) .. "_SHADERS_ROOT=\"" .. shader_define_output .. "/\"")
+        assert(#shader_files > 0, "No shaders found for " .. target_name .. " in " .. shader_directory)
         os.mkdir(shader_output)
         for _, shader in ipairs(shader_files) do
             local output = path.join(shader_output, path.filename(shader) .. ".spv")
@@ -90,7 +92,7 @@ rule("compile.glsl")
             if is_mode("debug") then
                 table.insert(args, 1, "-g")
             end
-            os.execv("glslangValidator", args)
+            os.execv(validator.program, args)
             if not os.isfile(output) then
                 raise("glslangValidator did not create " .. output)
             end

@@ -1,0 +1,7 @@
+target("terrain")
+    set_kind("binary")
+    set_target_layout("tasks/terrain")
+    add_files("main.cpp", "App.cpp")
+    add_deps("wsi", "etna")
+    add_packages("glfw", "glm", {public = false})
+    compile_shaders("shaders")
