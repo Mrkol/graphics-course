@@ -13,3 +13,7 @@ target_add_shaders(shadowmap
   shaders/simple.vert
   shaders/simple_shadow.frag
 )
+
+target_add_shaders_hlsl(shadowmap
+  shaders/simple_shadow.frag.hlsl
+)
