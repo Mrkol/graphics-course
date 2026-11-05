@@ -12,6 +12,7 @@ define_property(TARGET PROPERTY INTERFACE_SHADER_INCLUDE_DIRECTORIES
 )
 
 find_program(glslang_validator glslangValidator)
+find_program(dxc_compiler dxc)
 
 # Wokrs same way as target_include_directories, i.e. PUBLIC/PRIVATE/INTERFACE are supported
 function(target_shader_include_directories tgt)
@@ -43,15 +44,16 @@ function(target_add_shaders tgt)
 
   set(incl_dirs "$<TARGET_GENEX_EVAL:${tgt},$<TARGET_PROPERTY:${tgt},SHADER_INCLUDE_DIRECTORIES>>")
 
-  foreach(glsl_path ${ARGN})
-    set(input_path "${CMAKE_CURRENT_LIST_DIR}/${glsl_path}")
-    set(output_path "${shader_binaries_dir}/$<PATH:GET_FILENAME,${glsl_path}>.spv")
+  foreach(shader_path ${ARGN})
+    set(input_path "${CMAKE_CURRENT_LIST_DIR}/${shader_path}")
+    set(output_path "${shader_binaries_dir}/$<PATH:GET_FILENAME,${shader_path}>.spv")
     add_custom_command(
         OUTPUT ${output_path}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${shader_binaries_dir}
         COMMAND ${glslang_validator}
           "$<$<BOOL:${incl_dirs}>:-I$<JOIN:${incl_dirs},;-I>>"
           "$<$<CONFIG:Debug>:-g>"
+          -D__glsl
           -V
           ${input_path}
           -o ${output_path}
@@ -62,20 +64,72 @@ function(target_add_shaders tgt)
         DEPFILE "${output_path}.d"
       )
     list(APPEND SPIRV_BINARY_FILES ${output_path})
-  endforeach(glsl_path)
+  endforeach(shader_path)
 
-  set(custom_target_name "${tgt}_shaders")
+  _target_add_shader_target(${tgt} glsl "${shader_binaries_dir}" ${SPIRV_BINARY_FILES})
+endfunction()
+
+function(target_add_shaders_hlsl tgt)
+  list(POP_FRONT ${ARGN})
+
+  set(shader_binaries_dir "${CMAKE_CURRENT_BINARY_DIR}/shaders/")
+
+  set(incl_dirs "$<TARGET_GENEX_EVAL:${tgt},$<TARGET_PROPERTY:${tgt},SHADER_INCLUDE_DIRECTORIES>>")
+
+  foreach(shader_path ${ARGN})
+    if(shader_path MATCHES "\\.vert\\.hlsl$")
+      set(shader_profile vs_6_0)
+    elseif(shader_path MATCHES "\\.frag\\.hlsl$")
+      set(shader_profile ps_6_0)
+    elseif(shader_path MATCHES "\\.comp\\.hlsl$")
+      set(shader_profile cs_6_0)
+    else()
+      message(FATAL_ERROR "Cannot infer a DXC profile from HLSL shader '${shader_path}'.")
+    endif()
+
+    set(input_path "${CMAKE_CURRENT_LIST_DIR}/${shader_path}")
+    set(output_path "${shader_binaries_dir}/$<PATH:GET_FILENAME,${shader_path}>.spv")
+    add_custom_command(
+        OUTPUT ${output_path}
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${shader_binaries_dir}
+        COMMAND ${dxc_compiler}
+          "$<$<BOOL:${incl_dirs}>:-I$<JOIN:${incl_dirs},;-I>>"
+          "$<$<CONFIG:Debug>:-Zi>"
+          -D__hlsl
+          -E main
+          -T ${shader_profile}
+          -spirv
+          -fspv-target-env=vulkan1.3
+          ${input_path}
+          -Fo ${output_path}
+        VERBATIM
+        COMMAND_EXPAND_LISTS
+        DEPENDS ${input_path}
+      )
+    list(APPEND SPIRV_BINARY_FILES ${output_path})
+  endforeach(shader_path)
+
+  _target_add_shader_target(${tgt} hlsl "${shader_binaries_dir}" ${SPIRV_BINARY_FILES})
+endfunction()
+
+function(_target_add_shader_target tgt shader_type shader_binaries_dir)
+  set(custom_target_name "${tgt}_${shader_type}_shaders")
 
   if(TARGET ${custom_target_name})
-    message(FATAL_ERROR "Sorry, you can't call target_add_shaders multiple times cuz it's unimplemented. Fell free to create a PR.")
-  else()
+    message(FATAL_ERROR "Sorry, you can't call target_add_shaders_${shader_type} multiple times cuz it's unimplemented. Fell free to create a PR.")
+  endif()
+
+  if(NOT TARGET ${tgt}_shaders)
     set_target_properties(${tgt} PROPERTIES
       TRANSITIVE_COMPILE_PROPERTIES "SHADER_INCLUDE_DIRECTORIES"
     )
 
-    add_custom_target(${custom_target_name} DEPENDS ${SPIRV_BINARY_FILES})
-    add_dependencies(${tgt} ${custom_target_name})
-    add_compile_definitions(${tgt}
+    add_custom_target(${tgt}_shaders)
+    add_dependencies(${tgt} ${tgt}_shaders)
+    target_compile_definitions(${tgt}
       PRIVATE $<UPPER_CASE:${tgt}>_SHADERS_ROOT="${shader_binaries_dir}")
   endif()
+
+  add_custom_target(${custom_target_name} DEPENDS ${ARGN})
+  add_dependencies(${tgt}_shaders ${custom_target_name})
 endfunction()
