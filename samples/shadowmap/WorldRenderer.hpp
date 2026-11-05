@@ -37,7 +37,10 @@ public:
 
 private:
   void renderScene(
-    vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout);
+    vk::CommandBuffer cmd_buf,
+    const glm::mat4x4& glob_tm,
+    vk::PipelineLayout pipeline_layout,
+    auto&& render_instance);
 
 
 private:
@@ -73,6 +76,7 @@ private:
   };
 
   etna::GraphicsPipeline basicForwardPipeline{};
+  etna::GraphicsPipeline basicForwardPipelineHlsl{};
   etna::GraphicsPipeline shadowPipeline{};
 
   std::unique_ptr<QuadRenderer> quadRenderer;

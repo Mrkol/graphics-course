@@ -6,6 +6,7 @@ struct VS_OUT
   float3 wPos : TEXCOORD0;
   [[vk::location(1)]]
   float3 wNorm : TEXCOORD1;
+  // Keep locations and semantics in sync with simple.vert.
   [[vk::location(2)]]
   float3 wTangent : TEXCOORD2;
   [[vk::location(3)]]
@@ -15,6 +16,7 @@ struct VS_OUT
 [[vk::binding(0, 0)]]
 ConstantBuffer<UniformParams> params;
 
+// HLSL declares texture and sampler resources separately.
 [[vk::binding(1, 0)]]
 Texture2D<float> shadowMap;
 [[vk::binding(1, 0)]]
@@ -22,6 +24,7 @@ SamplerState shadowMap_samplerstate;
 
 float4 main(VS_OUT surf) : SV_Target
 {
+  // HLSL: do not use * operator. It is used for per-component multiplication
   const float4 posLightClipSpace = mul(params.lightMatrix, float4(surf.wPos, 1.0f));
 
   // for orto matrix, we don't need perspective division, you can remove it if you want; this is general case;
@@ -36,7 +39,9 @@ float4 main(VS_OUT surf) : SV_Target
   const float4 dark_violet = float4(0.59f, 0.0f, 0.82f, 1.0f);
   const float4 chartreuse  = float4(0.5f, 1.0f, 0.0f, 1.0f);
 
-  const float4 lightColor1 = lerp(dark_violet, chartreuse, abs(sin(params.time)));
+  // HLSL: lerp is identical to GLSL's mix function.
+  // Inverse order of lerped colors is used to demonstrate diff with GLSL version
+  const float4 lightColor1 = lerp(chartreuse, dark_violet, abs(sin(params.time)));
   const float4 lightColor2 = float4(1.0f, 1.0f, 1.0f, 1.0f);
 
   const float3 lightDir   = normalize(params.lightPos - surf.wPos);
