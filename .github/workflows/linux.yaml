@@ -31,6 +31,23 @@ jobs:
         vulkan-components: Vulkan-Headers, Vulkan-Loader, SPIRV-Tools, Glslang
         vulkan-use-cache: true
 
+    - name: Download DXC
+      id: dxc
+      shell: bash
+      run: |
+        release_url=https://api.github.com/repos/microsoft/DirectXShaderCompiler/releases/tags/v1.8.2502
+        archive_url=$(curl --fail --silent --show-error "$release_url" | jq -r \
+          '.assets[] | select(.name | test("^linux_dxc_[0-9]{4}_[0-9]{2}_[0-9]{2}\\.x86_64\\.tar\\.gz$")) | .browser_download_url' \
+          | head -n 1)
+        test -n "$archive_url"
+        dxc_dir="$RUNNER_TEMP/dxc"
+        mkdir -p "$dxc_dir"
+        curl --fail --location --silent --show-error "$archive_url" | tar -xz -C "$dxc_dir"
+        dxc_path=$(find "$dxc_dir" -type f -name dxc -print -quit)
+        test -n "$dxc_path"
+        chmod +x "$dxc_path"
+        echo "dxc_path=$dxc_path" >> "$GITHUB_OUTPUT"
+
     - name: Install CMake
       uses: ssrobins/install-cmake@v1
       with:
@@ -57,9 +74,11 @@ jobs:
       env:
         CXX: ${{matrix.cxx}}
         CXXFLAGS: ${{matrix.cxxflags}}
+        DXC_COMPILER: ${{ steps.dxc.outputs.dxc_path }}
       run: |
         cmake -DCPM_SOURCE_CACHE=~/cpm-cache \
           -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+          -Ddxc_compiler="$DXC_COMPILER" \
           $GITHUB_WORKSPACE
 
     - name: Build
