@@ -3,23 +3,23 @@
 struct VS_OUT
 {
   [[vk::location(0)]]
-  float3 wPos : TEXCOORD0;
+  float3 wPos : POSITION;
   [[vk::location(1)]]
-  float3 wNorm : TEXCOORD1;
-  // Keep locations and semantics in sync with simple.vert.
+  float3 wNorm : NORMAL;
   [[vk::location(2)]]
-  float3 wTangent : TEXCOORD2;
+  float3 wTangent : TANGENT;
   [[vk::location(3)]]
-  float2 texCoord : TEXCOORD3;
+  float2 texCoord : TEXCOORD;
 };
 
 [[vk::binding(0, 0)]]
 ConstantBuffer<UniformParams> params;
 
 // HLSL declares texture and sampler resources separately.
-[[vk::binding(1, 0)]]
+// [[vk::combinedImageSampler]] is used to combine the texture and sampler into a single resource.
+[[vk::combinedImageSampler]] [[vk::binding(1, 0)]]
 Texture2D<float> shadowMap;
-[[vk::binding(1, 0)]]
+[[vk::combinedImageSampler]] [[vk::binding(1, 0)]]
 SamplerState shadowMap_samplerstate;
 
 float4 main(VS_OUT surf) : SV_Target
