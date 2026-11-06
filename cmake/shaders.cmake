@@ -12,7 +12,14 @@ define_property(TARGET PROPERTY INTERFACE_SHADER_INCLUDE_DIRECTORIES
 )
 
 find_program(glslang_validator glslangValidator)
-find_program(dxc_compiler dxc)
+
+# Find DXC next to glslangValidator from the Vulkan SDK, rather than on PATH.
+get_filename_component(vulkan_sdk_bin_dir "${Vulkan_GLSLANG_VALIDATOR_EXECUTABLE}" DIRECTORY)
+find_program(dxc_compiler dxc
+  HINTS "${vulkan_sdk_bin_dir}"
+  NO_DEFAULT_PATH
+  REQUIRED
+)
 
 # Wokrs same way as target_include_directories, i.e. PUBLIC/PRIVATE/INTERFACE are supported
 function(target_shader_include_directories tgt)
