@@ -1,11 +1,15 @@
 #include "UniformParams.h"
 
+// See https://docs.vulkan.org/guide/latest/high_level_shader_language_comparison.html#_shader_inputs
 struct VS_OUT
 {
   [[vk::location(0)]]
   float3 wPos : POSITION;
   [[vk::location(1)]]
   float3 wNorm : NORMAL;
+  // wTangent and texCoord are unused, so DXC may omit them from the generated SPIR-V.
+  // This can produce a warning when creating the pipeline. The behavior is expected:
+  // ignore the warning or remove the unused members from both vertex and fragment shaders.
   [[vk::location(2)]]
   float3 wTangent : TANGENT;
   [[vk::location(3)]]
