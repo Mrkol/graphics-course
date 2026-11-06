@@ -82,6 +82,7 @@ function(target_add_shaders_hlsl tgt)
   while(shader_args)
     list(POP_FRONT shader_args shader_path)
     set(shader_model 6_0)
+    set(shader_model_specified FALSE)
 
     if(shader_args)
       list(GET shader_args 0 next_arg)
@@ -91,20 +92,49 @@ function(target_add_shaders_hlsl tgt)
           message(FATAL_ERROR "SHADER_MODEL must be followed by a shader model version.")
         endif()
         list(POP_FRONT shader_args shader_model)
+        set(shader_model_specified TRUE)
         if(NOT shader_model MATCHES "^[0-9]+_[0-9]+$")
           message(FATAL_ERROR "Invalid HLSL shader model '${shader_model}'. Use <major>_<minor>, for example 6_6.")
         endif()
       endif()
     endif()
 
+    set(minimum_shader_model 6_0)
+    set(entry_point_args -E main)
     if(shader_path MATCHES "\\.vert\\.hlsl$")
       set(shader_stage vs)
     elseif(shader_path MATCHES "\\.frag\\.hlsl$")
       set(shader_stage ps)
     elseif(shader_path MATCHES "\\.comp\\.hlsl$")
       set(shader_stage cs)
+    elseif(shader_path MATCHES "\\.geom\\.hlsl$")
+      set(shader_stage gs)
+    elseif(shader_path MATCHES "\\.tesc\\.hlsl$")
+      set(shader_stage hs)
+    elseif(shader_path MATCHES "\\.tese\\.hlsl$")
+      set(shader_stage ds)
+    elseif(shader_path MATCHES "\\.mesh\\.hlsl$")
+      set(shader_stage ms)
+      set(minimum_shader_model 6_5)
+    elseif(shader_path MATCHES "\\.task\\.hlsl$")
+      set(shader_stage as)
+      set(minimum_shader_model 6_5)
+    elseif(shader_path MATCHES "\\.(rgen|rmiss|rchit|rahit|rint|rcall)\\.hlsl$")
+      set(shader_stage lib)
+      set(minimum_shader_model 6_3)
+      set(entry_point_args)
     else()
       message(FATAL_ERROR "Cannot infer a DXC profile from HLSL shader '${shader_path}'.")
+    endif()
+
+    if(NOT shader_model_specified)
+      set(shader_model ${minimum_shader_model})
+    endif()
+    string(REPLACE "_" "." shader_model_version ${shader_model})
+    string(REPLACE "_" "." minimum_shader_model_version ${minimum_shader_model})
+    if(shader_model_version VERSION_LESS minimum_shader_model_version)
+      message(FATAL_ERROR
+        "HLSL shader '${shader_path}' requires shader model ${minimum_shader_model} or newer.")
     endif()
     set(shader_profile ${shader_stage}_${shader_model})
 
@@ -117,7 +147,7 @@ function(target_add_shaders_hlsl tgt)
           "$<$<BOOL:${incl_dirs}>:-I$<JOIN:${incl_dirs},;-I>>"
           "$<$<CONFIG:Debug>:-Zi>"
           -D__hlsl
-          -E main
+          ${entry_point_args}
           -T ${shader_profile}
           -spirv
           -fspv-target-env=vulkan1.3
