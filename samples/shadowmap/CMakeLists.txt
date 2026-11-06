@@ -15,5 +15,5 @@ target_add_shaders(shadowmap
 )
 
 target_add_shaders_hlsl(shadowmap
-  shaders/simple_shadow.frag.hlsl
+  shaders/simple_shadow.frag.hlsl SHADER_MODEL 6_6
 )
