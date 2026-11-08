@@ -55,6 +55,10 @@ void WorldRenderer::loadShaders()
   etna::create_program(
     "simple_material",
     {SHADOWMAP_SHADERS_ROOT "simple_shadow.frag.spv", SHADOWMAP_SHADERS_ROOT "simple.vert.spv"});
+  etna::create_program(
+    "simple_material_hlsl",
+    {SHADOWMAP_SHADERS_ROOT "simple_shadow.frag.hlsl.spv",
+     SHADOWMAP_SHADERS_ROOT "simple.vert.spv"});
   etna::create_program("simple_shadow", {SHADOWMAP_SHADERS_ROOT "simple.vert.spv"});
 }
 
@@ -77,6 +81,24 @@ void WorldRenderer::setupPipelines(vk::Format swapchain_format)
   basicForwardPipeline = {};
   basicForwardPipeline = pipelineManager.createGraphicsPipeline(
     "simple_material",
+    etna::GraphicsPipeline::CreateInfo{
+      .vertexShaderInput = sceneVertexInputDesc,
+      .rasterizationConfig =
+        vk::PipelineRasterizationStateCreateInfo{
+          .polygonMode = vk::PolygonMode::eFill,
+          .cullMode = vk::CullModeFlagBits::eBack,
+          .frontFace = vk::FrontFace::eCounterClockwise,
+          .lineWidth = 1.f,
+        },
+      .fragmentShaderOutput =
+        {
+          .colorAttachmentFormats = {swapchain_format},
+          .depthAttachmentFormat = vk::Format::eD32Sfloat,
+        },
+    });
+
+  basicForwardPipelineHlsl = pipelineManager.createGraphicsPipeline(
+    "simple_material_hlsl",
     etna::GraphicsPipeline::CreateInfo{
       .vertexShaderInput = sceneVertexInputDesc,
       .rasterizationConfig =
@@ -161,7 +183,10 @@ void WorldRenderer::update(const FramePacket& packet)
 }
 
 void WorldRenderer::renderScene(
-  vk::CommandBuffer cmd_buf, const glm::mat4x4& glob_tm, vk::PipelineLayout pipeline_layout)
+  vk::CommandBuffer cmd_buf,
+  const glm::mat4x4& glob_tm,
+  vk::PipelineLayout pipeline_layout,
+  auto&& render_instance)
 {
   if (!sceneMgr->getVertexBuffer())
     return;
@@ -179,6 +204,8 @@ void WorldRenderer::renderScene(
 
   for (std::size_t instIdx = 0; instIdx < instanceMeshes.size(); ++instIdx)
   {
+    if (!render_instance(instIdx))
+      continue;
     pushConst2M.model = instanceMatrices[instIdx];
 
     cmd_buf.pushConstants<PushConstants>(
@@ -212,7 +239,8 @@ void WorldRenderer::renderWorld(
       {.image = shadowMap.get(), .view = shadowMap.getView({})});
 
     cmd_buf.bindPipeline(vk::PipelineBindPoint::eGraphics, shadowPipeline.getVkPipeline());
-    renderScene(cmd_buf, lightMatrix, shadowPipeline.getVkPipelineLayout());
+    renderScene(
+      cmd_buf, lightMatrix, shadowPipeline.getVkPipelineLayout(), [](std::size_t) { return true; });
   }
 
   // draw final scene to screen
@@ -243,7 +271,24 @@ void WorldRenderer::renderWorld(
       {set.getVkSet()},
       {});
 
-    renderScene(cmd_buf, worldViewProj, basicForwardPipeline.getVkPipelineLayout());
+    renderScene(
+      cmd_buf, worldViewProj, basicForwardPipeline.getVkPipelineLayout(), [](size_t inst_idx) {
+        return static_cast<bool>(inst_idx & 1);
+      });
+
+    cmd_buf.bindPipeline(
+      vk::PipelineBindPoint::eGraphics, basicForwardPipelineHlsl.getVkPipeline());
+    cmd_buf.bindDescriptorSets(
+      vk::PipelineBindPoint::eGraphics,
+      basicForwardPipelineHlsl.getVkPipelineLayout(),
+      0,
+      {set.getVkSet()},
+      {});
+
+    renderScene(
+      cmd_buf, worldViewProj, basicForwardPipelineHlsl.getVkPipelineLayout(), [](size_t inst_idx) {
+        return !static_cast<bool>(inst_idx & 1);
+      });
   }
 
   if (drawDebugFSQuad)

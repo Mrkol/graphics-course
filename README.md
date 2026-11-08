@@ -81,3 +81,30 @@ Vulkan SDK ставится на Ubuntu аналогично, через доб�
 ## Ассеты
 3D-модели используемые для тестов предоставляются с соответствующими лицензиями и атрибуциями, см. директории конкретных сцен.
 
+
+## HLSL
+Изначально курс рассчитан на шейдеры на GLSL и их компиляцию с помощью `glslangValidator`.
+При необходимости можно писать шейдеры и на HLSL: для этого используется компилятор `dxc`, который предполагается брать из установленного Vulkan SDK.
+
+Для добавления HLSL-шейдеров используйте отдельную CMake-функцию `target_add_shaders_hlsl`:
+
+```cmake
+target_add_shaders_hlsl(my_target
+  shaders/lighting.frag.hlsl SHADER_MODEL 6_6
+  shaders/postprocess.comp.hlsl
+)
+```
+
+`glslangValidator` умеет определять стадию по суффиксу `.stage` или `.stage.hlsl`, но DXC требует явный профиль. Поэтому `target_add_shaders_hlsl` использует те же суффиксы, что и `glslangValidator`, и по ним выбирает профиль DXC. Поддерживаются обычные графические и compute-стадии: `.vert.hlsl`, `.frag.hlsl`, `.comp.hlsl`, `.geom.hlsl`, `.tesc.hlsl` и `.tese.hlsl`; mesh/task-шейдеры: `.mesh.hlsl` и `.task.hlsl`; а также ray tracing-шейдеры: `.rgen.hlsl`, `.rmiss.hlsl`, `.rchit.hlsl`, `.rahit.hlsl`, `.rint.hlsl` и `.rcall.hlsl`.
+
+После конкретного шейдера можно указать `SHADER_MODEL <major>_<minor>`; если этот параметр не указан, используется shader model `6_0`.
+Например, для первого шейдера выше DXC получит профиль `ps_6_6`, а для второго &mdash; `cs_6_0`.
+Для mesh/task-шейдеров минимальная модель &mdash; `6_5`, а для ray tracing-шейдеров &mdash; `6_3`; если `SHADER_MODEL` не указан, эти минимальные версии выбираются автоматически.
+
+Во всех случаях, кроме ray tracing, точкой входа считается функция `main`, как и в GLSL-шейдерах.
+Ray tracing-шейдеры компилируются DXC как HLSL-библиотека, поэтому должны объявлять entry point с соответствующим атрибутом HLSL, например `[shader("raygeneration")]`.
+
+### Полезные ссылки
+- [Using HLSL in Vulkan](https://docs.vulkan.org/guide/latest/hlsl.html)
+- [High-Level Shader Language Comparison](https://docs.vulkan.org/guide/latest/high_level_shader_language_comparison.html)
+

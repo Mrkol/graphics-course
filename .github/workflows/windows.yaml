@@ -24,6 +24,22 @@ jobs:
         vulkan-components: Vulkan-Headers, Vulkan-Loader, SPIRV-Tools, Glslang
         vulkan-use-cache: true
 
+    - name: Download DXC
+      id: dxc
+      shell: pwsh
+      run: |
+        $release = Invoke-RestMethod https://api.github.com/repos/microsoft/DirectXShaderCompiler/releases/tags/v1.8.2502
+        $asset = $release.assets | Where-Object { $_.name -match '^dxc_\d{4}_\d{2}_\d{2}\.zip$' } | Select-Object -First 1
+        if ($null -eq $asset) { throw 'Windows DXC archive was not found in release v1.8.2502.' }
+        $dxcDir = Join-Path $env:RUNNER_TEMP dxc
+        Invoke-WebRequest $asset.browser_download_url -OutFile "$env:RUNNER_TEMP/dxc.zip"
+        Expand-Archive "$env:RUNNER_TEMP/dxc.zip" -DestinationPath $dxcDir
+        $dxc = Get-ChildItem $dxcDir -Filter dxc.exe -Recurse |
+          Where-Object { $_.FullName -match '[\\/]x64[\\/]' } |
+          Select-Object -First 1
+        if ($null -eq $dxc) { throw 'x64 dxc.exe was not found in the downloaded archive.' }
+        "dxc_path=$($dxc.FullName)" >> $env:GITHUB_OUTPUT
+
     - name: Install CMake
       uses: ssrobins/install-cmake@v1
       with:
@@ -36,8 +52,11 @@ jobs:
       # Use a bash shell for $GITHUB_WORKSPACE.
       shell: bash
       working-directory: ${{runner.workspace}}/build
+      env:
+        DXC_COMPILER: ${{ steps.dxc.outputs.dxc_path }}
       run: |
         cmake -DCMAKE_BUILD_TYPE=${{matrix.build_type}} \
+              -Ddxc_compiler="$DXC_COMPILER" \
               $GITHUB_WORKSPACE
 
     - name: Build
