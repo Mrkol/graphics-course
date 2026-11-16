@@ -74,7 +74,24 @@ App::App()
     resolution = {w, h};
   }
 
-  // TODO: Initialize any additional resources you require here!
+  etna::create_program("toy", {LOCAL_SHADERTOY1_SHADERS_ROOT "toy.comp.spv"});
+  pipeline = etna::get_context().getPipelineManager().createComputePipeline("toy", {});
+
+  auto physicalDevice = etna::get_context().getPhysicalDevice();
+  const auto sourceFeatures = physicalDevice.getFormatProperties(
+    vk::Format::eR8G8B8A8Unorm).optimalTilingFeatures;
+  const auto requiredSourceFeatures =
+    vk::FormatFeatureFlagBits::eStorageImage | vk::FormatFeatureFlagBits::eBlitSrc;
+  ETNA_VERIFY((sourceFeatures & requiredSourceFeatures) == requiredSourceFeatures);
+  ETNA_VERIFY(static_cast<bool>(physicalDevice.getFormatProperties(
+    vkWindow->getCurrentFormat()).optimalTilingFeatures & vk::FormatFeatureFlagBits::eBlitDst));
+
+  resultImage = etna::get_context().createImage(etna::Image::CreateInfo{
+    .extent = {resolution.x, resolution.y, 1},
+    .name = "Shadertoy compute result",
+    .format = vk::Format::eR8G8B8A8Unorm,
+    .imageUsage = vk::ImageUsageFlagBits::eStorage | vk::ImageUsageFlagBits::eTransferSrc,
+  });
 }
 
 App::~App()
@@ -139,7 +156,47 @@ void App::drawFrame()
       etna::flush_barriers(currentCmdBuf);
 
 
-      // TODO: Record your commands here!
+      // Bind the storage image. We manage its barriers explicitly below.
+      auto program = etna::get_shader_program("toy");
+      auto set = etna::create_descriptor_set(
+        program.getDescriptorLayoutId(0),
+        currentCmdBuf,
+        {etna::Binding{0, resultImage.genBinding({}, vk::ImageLayout::eGeneral)}},
+        BarrierBehavior::eSuppressBarriers);
+      auto vkSet = set.getVkSet();
+      currentCmdBuf.bindPipeline(vk::PipelineBindPoint::eCompute, pipeline.getVkPipeline());
+      currentCmdBuf.bindDescriptorSets(
+        vk::PipelineBindPoint::eCompute, pipeline.getVkPipelineLayout(),
+        0, 1, &vkSet, 0, nullptr);
+
+      // Also synchronizes the previous frame's blit read before overwriting.
+      etna::set_state(
+        currentCmdBuf, resultImage.get(),
+        vk::PipelineStageFlagBits2::eComputeShader,
+        vk::AccessFlagBits2::eShaderStorageWrite,
+        vk::ImageLayout::eGeneral, vk::ImageAspectFlagBits::eColor);
+      etna::flush_barriers(currentCmdBuf);
+      currentCmdBuf.dispatch((resolution.x + 15) / 16, (resolution.y + 15) / 16, 1);
+
+      etna::set_state(
+        currentCmdBuf, resultImage.get(),
+        vk::PipelineStageFlagBits2::eTransfer,
+        vk::AccessFlagBits2::eTransferRead,
+        vk::ImageLayout::eTransferSrcOptimal, vk::ImageAspectFlagBits::eColor);
+      etna::flush_barriers(currentCmdBuf);
+
+      vk::ImageBlit region{};
+      region.srcSubresource = vk::ImageSubresourceLayers{
+        .aspectMask = vk::ImageAspectFlagBits::eColor, .layerCount = 1};
+      region.dstSubresource = region.srcSubresource;
+      region.srcOffsets[1] = vk::Offset3D{
+        .x = static_cast<int32_t>(resolution.x),
+        .y = static_cast<int32_t>(resolution.y), .z = 1};
+      region.dstOffsets[1] = region.srcOffsets[1];
+      currentCmdBuf.blitImage(
+        resultImage.get(), vk::ImageLayout::eTransferSrcOptimal,
+        backbuffer, vk::ImageLayout::eTransferDstOptimal,
+        1, &region, vk::Filter::eNearest);
 
 
       // At the end of "rendering", we are required to change how the pixels of the
@@ -189,3 +246,4 @@ void App::drawFrame()
     ETNA_VERIFY((resolution == glm::uvec2{w, h}));
   }
 }
+
