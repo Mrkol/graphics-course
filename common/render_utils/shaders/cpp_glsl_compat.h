@@ -29,7 +29,7 @@ using shader_mat4 = glm::mat4x4;
 // than 32 bits, so a bool has to be 32 bits as well.
 using shader_bool = glm::uint;
 
-#else
+#elif defined(__glsl)
 
 #define shader_uint uint
 #define shader_uvec2 uvec2
@@ -39,6 +39,19 @@ using shader_bool = glm::uint;
 #define shader_vec3 vec3
 #define shader_vec4 vec4
 #define shader_mat4 mat4
+
+#define shader_bool bool
+
+#elif defined(__hlsl)
+
+#define shader_uint uint
+#define shader_uvec2 uint2
+
+#define shader_float float
+#define shader_vec2 float2
+#define shader_vec3 float3
+#define shader_vec4 float4
+#define shader_mat4 float4x4
 
 #define shader_bool bool
 
