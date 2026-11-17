@@ -1,0 +1,44 @@
+#version 450
+
+layout(local_size_x = 4, local_size_y = 4, local_size_z = 4) in;
+layout(set = 0, binding = 0, r32f) uniform writeonly image3D noiseVolume;
+
+float CellValue(ivec3 cell, int frequency) {
+    uvec3 wrapped = uvec3(cell & (frequency - 1));
+    uint value = wrapped.x * 1597334677u ^ wrapped.y * 3812015801u ^ wrapped.z * 2798796415u;
+    value = (value ^ (value >> 16)) * 2246822519u;
+    value = (value ^ (value >> 13)) * 3266489917u;
+    return float(value >> 8) / 16777216.0;
+}
+
+float ValueNoise(vec3 uv, int frequency) {
+    vec3 p = uv * float(frequency);
+    ivec3 cell = ivec3(floor(p));
+    vec3 f = fract(p);
+    vec3 fade = f * f * (3.0 - 2.0 * f);
+    float a = mix(CellValue(cell, frequency), CellValue(cell + ivec3(1, 0, 0), frequency), fade.x);
+    float b = mix(CellValue(cell + ivec3(0, 1, 0), frequency), CellValue(cell + ivec3(1, 1, 0), frequency), fade.x);
+    float c = mix(CellValue(cell + ivec3(0, 0, 1), frequency), CellValue(cell + ivec3(1, 0, 1), frequency), fade.x);
+    float d = mix(CellValue(cell + ivec3(0, 1, 1), frequency), CellValue(cell + ivec3(1, 1, 1), frequency), fade.x);
+    return mix(mix(a, b, fade.y), mix(c, d, fade.y), fade.z);
+}
+
+void main() {
+    ivec3 voxel = ivec3(gl_GlobalInvocationID);
+    ivec3 size = imageSize(noiseVolume);
+    if (any(greaterThanEqual(voxel, size))) return;
+
+    vec3 uv = (vec3(voxel) + 0.5) / vec3(size);
+    int frequency = 4;
+    float amplitude = 0.5;
+    float value = 0.0;
+    float weight = 0.0;
+    for (int octave = 0; octave < 4; octave++) {
+        value += amplitude * ValueNoise(uv, frequency);
+        weight += amplitude;
+        frequency *= 2;
+        amplitude *= 0.5;
+    }
+
+    imageStore(noiseVolume, voxel, vec4(value / weight, 0.0, 0.0, 1.0));
+}

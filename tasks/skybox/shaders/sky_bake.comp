@@ -1,0 +1,129 @@
+#version 450
+
+layout(local_size_x = 8, local_size_y = 8) in;
+layout(set = 0, binding = 0, rgba16f) uniform writeonly image2DArray skyFaces;
+layout(set = 0, binding = 1) uniform sampler3D noiseVolume;
+
+layout(push_constant) uniform PushConstants {
+    vec4 sunDirectionIntensity;
+    vec4 sunColor;
+    vec4 clouds;
+    vec4 layer;
+    ivec4 steps;
+} pc;
+
+vec3 FaceDirection(int face, vec2 uv) {
+    switch (face) {
+        case 0: return vec3(1.0, -uv.y, -uv.x);
+        case 1: return vec3(-1.0, -uv.y, uv.x);
+        case 2: return vec3(uv.x, 1.0, uv.y);
+        case 3: return vec3(uv.x, -1.0, -uv.y);
+        case 4: return vec3(uv.x, -uv.y, 1.0);
+        default: return vec3(-uv.x, -uv.y, -1.0);
+    }
+}
+
+vec3 SkyGradient(vec3 rayDir) {
+    vec3 lightBlue = vec3(0.78, 0.94, 1.18);
+    vec3 darkBlue = vec3(0.04, 0.18, 0.42);
+    float t = clamp(rayDir.y * 0.5 + 0.5, 0.0, 1.0);
+    return mix(lightBlue, darkBlue, t);
+}
+
+float SunGlow(float sunCosine) {
+    float theta = acos(clamp(sunCosine, -1.0, 1.0));
+    float disk = exp(-theta * theta * 9000.0);
+    float halo = exp(-theta * 42.0);
+    return disk + 0.2 * halo;
+}
+
+float RayJitter(vec3 rayDir) {
+    uvec3 cell = uvec3(ivec3(floor(rayDir * 2048.0)));
+    uint value = cell.x * 1597334677u ^ cell.y * 3812015801u ^ cell.z * 2798796415u;
+    value = (value ^ (value >> 16)) * 2246822519u;
+    return float((value ^ (value >> 13)) >> 8) / 16777216.0;
+}
+
+float CloudDensity(vec3 position, float threshold, float inverseThickness) {
+    float height = (position.y - pc.layer.x) * inverseThickness;
+    float layerWeight = smoothstep(0.0, 0.22, height) * (1.0 - smoothstep(0.65, 1.0, height));
+    vec3 noisePosition = position * pc.clouds.z + vec3(0.34, 0.16, 0.57);
+    float noise = textureLod(noiseVolume, noisePosition, 0.0).r;
+    return smoothstep(threshold, threshold + 0.20, noise) * layerWeight * pc.clouds.y;
+}
+
+float SunTransmittance(vec3 position, vec3 sunDir, float threshold, float inverseThickness) {
+    if (pc.steps.y <= 0) return 1.0;
+
+    float distance = min(pc.layer.z, 3.0 / inverseThickness);
+    if (abs(sunDir.y) > 0.0001) {
+        float boundary = sunDir.y > 0.0 ? pc.layer.y : pc.layer.x;
+        distance = min(distance, max((boundary - position.y) / sunDir.y, 0.0));
+    }
+
+    float stepLength = distance / float(pc.steps.y);
+    vec3 offset = sunDir * stepLength;
+    position += offset * 0.5;
+    float opticalDepth = 0.0;
+    for (int step = 0; step < pc.steps.y; step++) {
+        opticalDepth += CloudDensity(position, threshold, inverseThickness) * stepLength;
+        position += offset;
+        if (opticalDepth >= 6.0) break;
+    }
+    return exp(-opticalDepth);
+}
+
+vec4 MarchClouds(vec3 rayDir, vec3 sunDir, float sunCosine, vec3 sunRadiance, vec3 sky, vec3 gradient) {
+    if (rayDir.y <= 0.0001 || pc.clouds.x <= 0.0 || pc.clouds.y <= 0.0) return vec4(sky, 1.0);
+
+    float start = pc.layer.x / rayDir.y;
+    float end = min(pc.layer.y / rayDir.y, pc.layer.z);
+    if (end <= start) return vec4(sky, 1.0);
+
+    float inverseThickness = 1.0 / (pc.layer.y - pc.layer.x);
+    float threshold = mix(0.90, 0.08, pc.clouds.x);
+    int stepCount = max(pc.steps.x, 1);
+    float stepLength = (end - start) / float(stepCount);
+
+    float jitterWeight = smoothstep(0.15, 0.60, stepLength * pc.clouds.z * 4.0);
+    float jitter = RayJitter(rayDir);
+    float phase = 0.18 + 0.28 * pow(clamp(sunCosine, 0.0, 1.0), 8.0);
+    vec3 scattered = vec3(0.0);
+    float transmittance = 1.0;
+    for (int step = 0; step < stepCount; step++) {
+        float distance = start + (float(step) + mix(0.5, jitter, jitterWeight)) * stepLength;
+        jitter = fract(jitter + 0.61803399);
+        vec3 position = rayDir * distance;
+        float density = CloudDensity(position, threshold, inverseThickness);
+        density *= 1.0 - smoothstep(pc.layer.z * 0.65, pc.layer.z, distance);
+        if (density <= 0.00001) continue;
+
+        float opacity = 1.0 - exp(-density * stepLength);
+        float height = clamp((position.y - pc.layer.x) * inverseThickness, 0.0, 1.0);
+        vec3 ambient = mix(vec3(0.28, 0.37, 0.51), vec3(0.58, 0.66, 0.79), height);
+        float visibility = SunTransmittance(position, sunDir, threshold, inverseThickness);
+        vec3 light = ambient + sunRadiance * (phase * visibility);
+        light = mix(gradient, light, exp(-distance * 0.00065));
+        scattered += transmittance * opacity * light;
+        transmittance *= 1.0 - opacity;
+        if (transmittance < 0.01) break;
+    }
+
+    return vec4(scattered + transmittance * sky, transmittance);
+}
+
+void main() {
+    ivec3 pixel = ivec3(gl_GlobalInvocationID);
+    pixel.y += pc.steps.z;
+    ivec3 size = imageSize(skyFaces);
+    if (any(greaterThanEqual(pixel, size))) return;
+
+    vec2 uv = (vec2(pixel.xy) + 0.5) * (2.0 / vec2(size.xy)) - 1.0;
+    vec3 rayDir = normalize(FaceDirection(pixel.z, uv));
+    vec3 sunDir = normalize(pc.sunDirectionIntensity.xyz);
+    float sunCosine = dot(rayDir, sunDir);
+    vec3 sunRadiance = pc.sunColor.rgb * pc.sunDirectionIntensity.w;
+    vec3 gradient = SkyGradient(rayDir);
+    vec3 sky = gradient + SunGlow(sunCosine) * sunRadiance;
+    imageStore(skyFaces, pixel, MarchClouds(rayDir, sunDir, sunCosine, sunRadiance, sky, gradient));
+}
